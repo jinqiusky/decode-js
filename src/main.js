@@ -1,11 +1,13 @@
-﻿import fs from 'fs'
-import PluginSojson from './plugin/sojson.js'
-import PluginSojsonV7 from './plugin/sojsonv7.js'
-import PluginObfuscator from './plugin/obfuscator.js'
-import PluginAwsc from './plugin/awsc.js'
+﻿const fs = require('fs')
+const PluginCommon = require('./plugin/common.js')
+const PluginJjencode = require('./plugin/jjencode.js')
+const PluginSojson = require('./plugin/sojson.js')
+const PluginSojsonV7 = require('./plugin/sojsonv7.js')
+const PluginObfuscator = require('./plugin/obfuscator.js')
+const PluginAwsc = require('./plugin/awsc.js')
 
 // 读取参数
-let type = 'obfuscator'
+let type = 'common'
 let encodeFile = 'input.js'
 let decodeFile = 'output.js'
 for (let i = 2; i < process.argv.length; i += 2) {
@@ -36,6 +38,10 @@ if (type === 'sojson') {
   code = PluginObfuscator(sourceCode)
 } else if (type === 'awsc') {
   code = PluginAwsc(sourceCode)
+} else if (type === 'jjencode') {
+  code = PluginJjencode(sourceCode)
+} else {
+  code = PluginCommon(sourceCode)
 }
 
 // 输出代码

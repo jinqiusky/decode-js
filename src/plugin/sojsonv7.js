@@ -1,15 +1,13 @@
 /**
  * For jsjiami.com.v7
  */
-import { parse } from '@babel/parser'
-import _generate from '@babel/generator'
-import _traverse from '@babel/traverse'
-import * as t from '@babel/types'
-import * as vm from 'node:vm'
-import { VM } from 'vm2'
-
-const generator = _generate.default
-const traverse = _traverse.default
+const { parse } = require('@babel/parser')
+const generator = require('@babel/generator').default
+const traverse = require('@babel/traverse').default
+const t = require('@babel/types')
+const vm = require('vm')
+const { VM } = require('vm2')
+const PluginEval = require('./eval.js')
 
 let globalContext = vm.createContext()
 let vm2 = new VM({
@@ -37,23 +35,73 @@ function decodeGlobal(ast) {
     console.log('Error: code too short')
     return false
   }
+  // split the first line
+  traverse(ast, {
+    Program(path) {
+      path.stop()
+      const l1 = path.get('body.0')
+      if (!l1.isVariableDeclaration()) {
+        return
+      }
+      const defs = l1.node.declarations
+      const kind = l1.node.kind
+      for (let i = defs.length - 1; i; --i) {
+        l1.insertAfter(t.VariableDeclaration(kind, [defs[i]]))
+        l1.get(`declarations.${i}`).remove()
+      }
+      l1.scope.crawl()
+    },
+  })
   // find the main encode function
-  let count = 0
+  // [version, string-array, call, ...]
   let decrypt_code = []
-  for (let i = 0; i < 4; ++i) {
+  for (let i = 0; i < 3; ++i) {
     decrypt_code.push(t.EmptyStatement())
   }
-  let decrypt_val
   const first_line = ast.program.body[0]
-  if (!t.isVariableDeclaration(first_line)) {
-    console.log('Error: line 1 is not variable declaration')
+  let var_version
+  if (t.isVariableDeclaration(first_line)) {
+    if (first_line.declarations.length) {
+      var_version = first_line.declarations[0].id.name
+    }
+  } else if (t.isCallExpression(first_line?.expression)) {
+    let call_func = first_line.expression.callee?.name
+    let i = ast.program.body.length
+    let find = false
+    while (--i) {
+      let part = ast.program.body[i]
+      if (!t.isFunctionDeclaration(part) || part?.id?.name !== call_func) {
+        continue
+      }
+      if (find) {
+        // remove duplicate definition
+        ast.program.body[i] = t.emptyStatement()
+        continue
+      }
+      find = true
+      let obj = part.body.body[0]?.expression?.left
+      if (!obj || !t.isMemberExpression(obj) || obj.object?.name !== 'global') {
+        break
+      }
+      var_version = obj.property?.value
+      decrypt_code.push(part)
+      ast.program.body[i] = t.emptyStatement()
+      continue
+    }
+  }
+  if (!var_version) {
+    console.error('Line 1 is not version variable!')
     return false
   }
-  const var_version = first_line.declarations[0].id.name
-  if (first_line.declarations.length == 1) {
-    decrypt_code[0] = first_line
-    ast.program.body.shift()
-    ++count
+  console.info(`Version var: ${var_version}`)
+  decrypt_code[0] = first_line
+  ast.program.body.shift()
+
+  // iterate and classify all refs of var_version
+  const refs = {
+    string_var: null,
+    string_path: null,
+    def: [],
   }
   traverse(ast, {
     Identifier: (path) => {
@@ -61,87 +109,121 @@ function decodeGlobal(ast) {
       if (name !== var_version) {
         return
       }
-      if (!t.isArrayExpression(path.parentPath.node)) {
-        return
-      }
-      let node_table = path.getFunctionParent()
-      while (node_table.getFunctionParent()) {
-        node_table = node_table.getFunctionParent()
-      }
-      let var_string_table = null
-      if (node_table.node.id) {
-        var_string_table = node_table.node.id.name
+      const up1 = path.parentPath
+      if (up1.isVariableDeclarator()) {
+        refs.def.push(path)
+      } else if (up1.isArrayExpression()) {
+        let node_table = path.getFunctionParent()
+        while (node_table.getFunctionParent()) {
+          node_table = node_table.getFunctionParent()
+        }
+        let var_string_table = null
+        if (node_table.node.id) {
+          var_string_table = node_table.node.id.name
+        } else {
+          while (!t.isVariableDeclarator(node_table)) {
+            node_table = node_table.parentPath
+          }
+          var_string_table = node_table.node.id.name
+        }
+        let valid = true
+        up1.traverse({
+          MemberExpression(path) {
+            valid = false
+            path.stop()
+          },
+        })
+        if (valid) {
+          refs.string_var = var_string_table
+          refs.string_path = node_table
+        } else {
+          console.info(`Drop string table: ${var_string_table}`)
+        }
+      } else if (up1.isAssignmentExpression() && path.key === 'left') {
+        // We don't need to execute this reference
+        // Instead, we can delete it directly
+        const up2 = up1.parentPath
+        up2.replaceWith(up2.node.left)
       } else {
-        while (!t.isVariableDeclarator(node_table)) {
-          node_table = node_table.parentPath
-        }
-        var_string_table = node_table.node.id.name
+        console.warn(`Unexpected ref var_version: ${up1}`)
       }
-      const binds = node_table.scope.getBinding(var_string_table)
-      for (let bind of binds.referencePaths) {
-        const parent = bind.parentPath
-        if (t.isAssignmentExpression(parent.node)) {
-          // preprocessing function
-          let top = parent
-          while (!t.isProgram(top.parentPath)) {
-            top = top.parentPath
-          }
-          decrypt_code[2] = top.node
-          top.remove()
-          ++count
-          continue
-        }
-        if (t.isVariableDeclarator(parent.node)) {
-          // main decrypt val
-          let top = parent.getFunctionParent()
-          while (top.getFunctionParent()) {
-            top = top.getFunctionParent()
-          }
-          decrypt_code[3] = top.node
-          decrypt_val = top.node.id.name
-          top.remove()
-          ++count
-          continue
-        }
-        if (t.isCallExpression(parent.node) && !parent.node.arguments.length) {
-          if (!t.isVariableDeclarator(parent.parentPath.node)) {
-            continue
-          }
-          let top = parent.getFunctionParent()
-          while (top.getFunctionParent()) {
-            top = top.getFunctionParent()
-          }
-          decrypt_code[3] = top.node
-          decrypt_val = top.node.id.name
-          top.remove()
-          ++count
-        }
-      }
-      // line of string table
-      let top = node_table
-      while (top.parentPath.parentPath) {
-        top = top.parentPath
-      }
-      decrypt_code[1] = top.node
-      top.remove()
-      ++count
-      path.stop()
     },
   })
-  if (count < 3 || !decrypt_val) {
-    console.log('Error: cannot find decrypt variable')
+  // check if contains string table
+  let var_string_table = refs.string_var
+  if (!var_string_table) {
+    console.error('Cannot find string table')
     return false
   }
-  console.log(`主加密变量: ${decrypt_val}`)
-  let content_code = ast.program.body
+  //  check if contains rotate function and decrypt variable
+  let decrypt_val
+  let binds = refs.string_path.scope.getBinding(var_string_table)
+  // remove path of string table
+  decrypt_code[1] = refs.string_path.node
+  refs.string_path.remove()
+  // iterate refs
+  for (let bind of binds.referencePaths) {
+    if (bind.findParent((path) => path.removed)) {
+      continue
+    }
+    const parent = bind.parentPath
+    if (parent.isCallExpression() && bind.listKey === 'arguments') {
+      // This is the rotate function.
+      // However, we can delete it later.
+      continue
+    }
+    if (parent.isSequenceExpression()) {
+      // rotate function
+      decrypt_code.push(t.expressionStatement(parent.node))
+      const up2 = parent.parentPath
+      if (up2.isIfStatement()) {
+        // In the new version, rotate function will be enclosed by an
+        // empty IfStatement
+        up2.remove()
+      } else {
+        parent.remove()
+      }
+      continue
+    }
+    if (t.isVariableDeclarator(parent.node)) {
+      // main decrypt val
+      let top = parent.getFunctionParent()
+      while (top.getFunctionParent()) {
+        top = top.getFunctionParent()
+      }
+      decrypt_code[2] = top.node
+      decrypt_val = top.node.id.name
+      top.remove()
+      continue
+    }
+    if (t.isCallExpression(parent.node) && !parent.node.arguments.length) {
+      if (!t.isVariableDeclarator(parent.parentPath.node)) {
+        continue
+      }
+      let top = parent.getFunctionParent()
+      while (top.getFunctionParent()) {
+        top = top.getFunctionParent()
+      }
+      decrypt_code[2] = top.node
+      decrypt_val = top.node.id.name
+      top.remove()
+    }
+  }
+  if (!decrypt_val) {
+    console.error('Cannot find decrypt variable')
+    return
+  }
+  console.log(`Main call wrapper name: ${decrypt_val}`)
+
   // 运行解密语句
+  let content_code = ast.program.body
   ast.program.body = decrypt_code
   let { code } = generator(ast, {
     compact: true,
   })
   virtualGlobalEval(code)
-  ast.program.body = content_code
   // 遍历内容语句
+  ast.program.body = content_code
   let cur_val = decrypt_val
   function funToStr(path) {
     let node = path.node
@@ -298,9 +380,6 @@ function unpackCall(path) {
   console.log(`处理代码块: ${objName}`)
   let objUsed = {}
   function getReplaceFunc(_node) {
-    if (!t.isIdentifier(_node.object) || _node.object.name !== objName) {
-      return null
-    }
     if (!t.isStringLiteral(_node.property) && !t.isIdentifier(_node.property)) {
       return null
     }
@@ -316,31 +395,31 @@ function unpackCall(path) {
     objUsed[key] = true
     return objKeys[key]
   }
-  const fnPath = path.getFunctionParent() || path.scope.path
-  fnPath.traverse({
-    CallExpression: function (_path) {
-      const _node = _path.node.callee
-      // 函数名必须为Object成员
-      if (!t.isMemberExpression(_node)) {
-        return
+  let bind = path.scope.getBinding(objName)?.referencePaths
+  let usedCount = 0
+  for (let i = bind.length - 1; i >= 0; --i) {
+    let ref = bind[i]
+    let up1 = ref.parentPath
+    if (up1.isMemberExpression() && ref.key === 'object') {
+      if (up1.key === 'left' && t.isAssignmentExpression(up1.parent)) {
+        continue
       }
-      let func = getReplaceFunc(_node)
-      let args = _path.node.arguments
-      if (func) {
-        func(_path, args)
+      let func = getReplaceFunc(up1.node)
+      if (!func) {
+        continue
       }
-    },
-    MemberExpression: function (_path) {
-      let func = getReplaceFunc(_path.node)
-      if (func) {
-        func(_path)
+      ++usedCount
+      let up2 = up1.parentPath
+      if (up1.key === 'callee') {
+        func(up2, up2.node.arguments)
+      } else {
+        func(up1)
       }
-    },
-  })
+    }
+  }
   // 如果没有全部使用 就先不删除
-  const usedCount = Object.keys(objUsed).length
-  if (usedCount !== replCount) {
-    console.log(`不完整使用: ${objName} ${usedCount}/${replCount}`)
+  if (usedCount !== bind.length) {
+    console.log(`不完整使用: ${objName} ${usedCount}/${bind.length}`)
   } else {
     path.remove()
   }
@@ -411,7 +490,7 @@ function cleanIFCode(path) {
   }
 }
 
-function cleanSwitchCode(path) {
+function cleanSwitchCode1(path) {
   // 扁平控制：
   // 会使用一个恒为true的while语句包裹一个switch语句
   // switch语句的执行顺序又while语句上方的字符串决定
@@ -489,133 +568,211 @@ function cleanSwitchCode(path) {
   path.replaceInline(resultBody)
 }
 
+function cleanSwitchCode2(path) {
+  // 扁平控制：
+  // 会使用一个空的for语句包裹一个switch语句
+  // switch语句的执行顺序由for语句上方的字符串决定
+  // 首先判断是否符合这种情况
+  const node = path.node
+  if (node.init || node.test || node.update) {
+    return
+  }
+  if (!t.isBlockStatement(node.body)) {
+    return
+  }
+  const body = node.body.body
+  if (
+    !t.isSwitchStatement(body[0]) ||
+    !t.isMemberExpression(body[0].discriminant) ||
+    !t.isBreakStatement(body[1])
+  ) {
+    return
+  }
+  // switch语句的两个变量
+  const swithStm = body[0]
+  const arrName = swithStm.discriminant.object.name
+  const argName = swithStm.discriminant.property.argument.name
+  // 在while上面的节点寻找这两个变量
+  let arr = null
+  for (let pre_path of path.getAllPrevSiblings()) {
+    if (!pre_path.isVariableDeclaration()) {
+      continue
+    }
+    let test = '' + pre_path
+    try {
+      arr = eval(test + `;${arrName}`)
+    } catch {
+      //
+    }
+  }
+  if (!arr) {
+    return
+  }
+  console.log(`扁平化还原: ${arrName}[${argName}]`)
+  // 重建代码块
+  const caseMap = {}
+  for (let item of swithStm.cases) {
+    caseMap[item.test.value] = item.consequent
+  }
+  let resultBody = []
+  arr.map((targetIdx) => {
+    // 从当前序号开始直到遇到continue
+    let valid = true
+    while (valid && targetIdx < arr.length) {
+      const targetBody = caseMap[targetIdx]
+      for (let i = 0; i < targetBody.length; ++i) {
+        const s = targetBody[i]
+        if (t.isContinueStatement(s)) {
+          valid = false
+          break
+        }
+        if (t.isReturnStatement(s)) {
+          valid = false
+          resultBody.push(s)
+          break
+        }
+        if (t.isBreakStatement(s)) {
+          console.log(`switch中出现意外的break: ${arrName}[${argName}]`)
+        } else {
+          resultBody.push(s)
+        }
+      }
+      targetIdx++
+    }
+  })
+  // 替换整个while语句
+  path.replaceInline(resultBody)
+}
+
 function cleanDeadCode(ast) {
   traverse(ast, { UnaryExpression: purifyBoolean })
   traverse(ast, { IfStatement: cleanIFCode })
   traverse(ast, { ConditionalExpression: cleanIFCode })
-  traverse(ast, { WhileStatement: { exit: cleanSwitchCode } })
+  traverse(ast, { WhileStatement: { exit: cleanSwitchCode1 } })
+  traverse(ast, { ForStatement: { exit: cleanSwitchCode2 } })
   return ast
 }
 
-let func_dbg = ''
-
-function unlockVersionCheck(path) {
-  const right = path.node.right
-  const msg = '删除版本号，js会定期弹窗，还请支持我们的工作'
-  if (!t.isStringLiteral(right) || right.value !== msg) {
-    return
-  }
-  let fnPath = path.getFunctionParent()
-  if (!t.isFunctionExpression(fnPath.node)) {
-    return
-  }
-  fnPath = fnPath.parentPath
-  if (!t.isCallExpression(fnPath.node)) {
-    return
-  }
-  fnPath.remove()
-  console.log('去版本检测')
-}
-
-function unlockDebugger1(path) {
-  let decl_path = path
-  let dep = 0
-  while (decl_path.parentPath && dep < 2) {
-    decl_path = decl_path.parentPath
-    if (t.isFunctionDeclaration(decl_path.node)) {
-      ++dep
+function removeUniqueCall(path) {
+  let up1 = path.parentPath
+  let decorator = up1.node.callee.name
+  console.info(`Remove decorator: ${decorator}`)
+  let bind1 = up1.scope.getBinding(decorator)
+  bind1.path.remove()
+  if (up1.key === 'callee') {
+    up1.parentPath.remove()
+  } else if (up1.key === 'init') {
+    let up2 = up1.parentPath
+    let call = up2.node.id.name
+    console.info(`Remove call: ${decorator}`)
+    let bind2 = up2.scope.getBinding(call)
+    up2.remove()
+    for (let ref of bind2.referencePaths) {
+      if (ref.findParent((path) => path.removed)) {
+        continue
+      }
+      if (ref.key === 'callee') {
+        let rm = ref.parentPath
+        if (rm.key === 'expression') {
+          rm = rm.parentPath
+        }
+        rm.remove()
+      } else {
+        console.warn(`Unexpected ref key: ${ref.key}`)
+      }
     }
   }
-  if (dep < 2) {
-    // 由于代码会出现两次 遍历到第二个位置时节点已被删除 必然会出现这个情况
-    console.log('控制台调试: 找不到父函数')
+}
+
+function unlockDebugger(path) {
+  const decl_path = path.getFunctionParent()?.getFunctionParent()
+  if (!decl_path) {
+    return
+  }
+  // Check if contains inf-loop
+  let valid = false
+  path.getFunctionParent().traverse({
+    WhileStatement(path) {
+      if (t.isBooleanLiteral(path.node.test) && path.node.test) {
+        valid = true
+      }
+    },
+  })
+  if (!valid) {
     return
   }
   const name = decl_path.node.id.name
-  func_dbg = name
+  const bind = decl_path.scope.getBinding(name)
+  console.info(`Debug test and inf-loop: ${name}`)
+  for (let ref of bind.referencePaths) {
+    if (ref.findParent((path) => path.removed)) {
+      continue
+    }
+    if (ref.listKey === 'arguments') {
+      // setInterval
+      let rm = ref.getFunctionParent().parentPath
+      if (rm.key === 'expression') {
+        rm = rm.parentPath
+      }
+      rm.remove()
+    } else if (ref.key === 'callee') {
+      // lint test for this method
+      let rm = ref.getFunctionParent()
+      removeUniqueCall(rm)
+    } else {
+      console.warn(`Unexpected ref key: ${ref.key}`)
+    }
+  }
   decl_path.remove()
-  console.log(`控制台调试: ${name}`)
+  path.stop()
 }
 
-function unlockDebugger2(path) {
-  const callee = path.node.callee
-  if (!t.isIdentifier(callee) || callee.name !== func_dbg) {
+function unlockConsole(path) {
+  if (!t.isArrayExpression(path.node.init)) {
     return
   }
-  const fnPath = path.getFunctionParent()
-  const node = fnPath.node
-  if (!t.isFunctionExpression(node)) {
+  let pattern = 'log|warn|debug|info|error|exception|table|trace'
+  let count = 0
+  for (let ele of path.node.init.elements) {
+    if (~pattern.indexOf(ele.value)) {
+      ++count
+      continue
+    }
     return
   }
-  fnPath.replaceWith(
-    t.functionExpression(node.id, node.params, t.blockStatement([]))
-  )
+  if (count < 5) {
+    return
+  }
+  let left1 = path.getSibling(0)
+  const code = generator(left1.node, { minified: true }).code
+  pattern = ['window', 'process', 'require', 'global']
+  pattern.map((key) => {
+    if (code.indexOf(key) == -1) {
+      return
+    }
+  })
+  let rm = path.getFunctionParent()
+  removeUniqueCall(rm)
 }
 
-function unlockDebugger3(path) {
-  // 是否定义为空函数
-  const f = path.node.init
-  if (!t.isFunctionExpression(f) || f.params.length) {
+function unlockLint(path) {
+  if (path.findParent((up) => up.removed)) {
     return
   }
-  if (!t.isBlockStatement(f.body) || f.body.body.length) {
+  if (path.node.value !== '(((.+)+)+)+$') {
     return
   }
-  const name = path.node.id.name
-  // 判断函数域是否符合特征
-  const fn = path.getFunctionParent()
-  const body = fn.node.body.body
-  if (body.length !== 3) {
-    return
-  }
-  if (
-    !t.isVariableDeclaration(body[0]) ||
-    !t.isVariableDeclaration(body[1]) ||
-    !t.isIfStatement(body[2])
-  ) {
-    return
-  }
-  const feature = [
-    [name],
-    ['window', 'process', 'require', 'global'],
-    ['console', 'log', 'warn', 'debug', 'info', 'error', 'exception', 'trace'],
-  ]
-  let valid = true
-  for (let i = 0; i < 3; ++i) {
-    const { code } = generator(
-      {
-        type: 'Program',
-        body: [body[i]],
-      },
-      {
-        compact: true,
-      }
-    )
-    feature[i].map((key) => {
-      if (code.indexOf(key) == -1) {
-        valid = false
-      }
-    })
-  }
-  if (valid) {
-    console.log('控制台输出')
-    const node = fn.node
-    fn.replaceWith(
-      t.functionExpression(node.id, node.params, t.blockStatement([]))
-    )
-  }
+  let rm = path.getFunctionParent()
+  removeUniqueCall(rm)
 }
 
 function unlockEnv(ast) {
-  // 删除版本号检测
-  traverse(ast, { AssignmentExpression: unlockVersionCheck })
-  // 查找并删除`禁止控制台调试`函数
-  traverse(ast, { DebuggerStatement: unlockDebugger1 })
-  // 删除`禁止控制台调试`的相关调用 会一并清理`防止格式化`
-  traverse(ast, { CallExpression: unlockDebugger2 })
-  // 清空`禁止控制台输出`函数
-  traverse(ast, { VariableDeclarator: unlockDebugger3 })
-  return ast
+  // 删除`禁止控制台调试`函数
+  traverse(ast, { DebuggerStatement: unlockDebugger })
+  // 删除`禁止控制台输出`函数
+  traverse(ast, { VariableDeclarator: unlockConsole })
+  // 删除`禁止换行`函数
+  traverse(ast, { StringLiteral: unlockLint })
 }
 
 function purifyFunction(path) {
@@ -732,17 +889,19 @@ function purifyCode(ast) {
     // a = 1;
     // b = ddd();
     // c = null;
-    let { expression } = path.node
-    if (!t.isSequenceExpression(expression)) {
+    if (!t.isExpressionStatement(path.parent)) {
       return
     }
-    let body = []
-    expression.expressions.forEach((express) => {
-      body.push(t.expressionStatement(express))
-    })
-    path.replaceInline(body)
+    let replace_path = path.parentPath
+    if (replace_path.listKey !== 'body') {
+      return
+    }
+    for (const item of path.node.expressions) {
+      replace_path.insertBefore(t.expressionStatement(item))
+    }
+    replace_path.remove()
   }
-  traverse(ast, { ExpressionStatement: removeComma })
+  traverse(ast, { SequenceExpression: { exit: removeComma } })
   // 删除空语句
   traverse(ast, {
     EmptyStatement: (path) => {
@@ -750,44 +909,27 @@ function purifyCode(ast) {
     },
   })
   // 删除未使用的变量
-  traverse(ast, {
-    VariableDeclarator: (path) => {
-      let { node, scope } = path
-      const name = node.id.name
-      let binding = scope.getBinding(name)
-      if (!binding || binding.referenced || !binding.constant) {
-        return
-      }
-      const path_p = path.parentPath
-      if (path_p && t.isForOfStatement(path_p.parentPath)) {
-        return
-      }
-      console.log(`未引用变量: ${name}`)
-      if (path_p.node.declarations.length === 1) {
-        path_p.remove()
-      } else {
-        path.remove()
-      }
-    },
-  })
-  return ast
+  const deleteUnusedVar = require('../visitor/delete-unused-var')
+  traverse(ast, deleteUnusedVar)
 }
 
-export default function (jscode) {
-  let opt = {}
-  let ast
-  while (!ast) {
-    try {
-      ast = parse(jscode, opt)
-    } catch (e) {
-      if (e.reasonCode === 'IllegalReturn') {
-        opt.allowReturnOutsideFunction = true
-      } else {
-        console.error('Cannot parse code!')
-        return null
-      }
-    }
+module.exports = function (code) {
+  let ret = PluginEval.unpack(code)
+  let global_eval = false
+  if (ret) {
+    global_eval = true
+    code = ret
   }
+  let ast
+  try {
+    ast = parse(code, { errorRecovery: true })
+  } catch (e) {
+    console.error(`Cannot parse code: ${e.reasonCode}`)
+    return null
+  }
+  // IllegalReturn
+  const deleteIllegalReturn = require('../visitor/delete-illegal-return')
+  traverse(ast, deleteIllegalReturn)
   // 清理二进制显示内容
   traverse(ast, {
     StringLiteral: ({ node }) => {
@@ -813,17 +955,20 @@ export default function (jscode) {
     generator(ast, {
       comments: false,
       jsescOption: { minimal: true },
-    }).code,
-    opt
+    }).code
   )
   console.log('提高代码可读性...')
-  ast = purifyCode(ast)
-  // console.log('解除环境限制...')
-  // ast = unlockEnv(ast)
+  purifyCode(ast)
+  ast = parse(generator(ast, { comments: false }).code)
+  console.log('解除环境限制...')
+  unlockEnv(ast)
   console.log('净化完成')
-  let { code } = generator(ast, {
+  code = generator(ast, {
     comments: false,
     jsescOption: { minimal: true },
-  })
+  }).code
+  if (global_eval) {
+    code = PluginEval.pack(code)
+  }
   return code
 }
