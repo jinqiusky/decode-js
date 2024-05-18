@@ -13,12 +13,12 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.actor != 'github-actions[bot]' }} # 如果提交者不是 github-actions[bot]，则执行
     steps:
-    - uses: actions/checkout@v3 # 更新至最新的v3版本
+    - uses: actions/checkout@v4 # 更新至最新的v4版本
       with:
         fetch-depth: 0 # 克隆整个仓库历史
         token: ${{ secrets.GITHUB_TOKEN }} # 使用 GitHub 的内置密钥进行授权
     - name: Set up Node.js
-      uses: actions/setup-node@v3 # 更新至最新的v3版本
+      uses: actions/setup-node@v4 # 更新至最新的v4版本
       with:
         node-version: '20.x' # 更新至Node.js 20
     - name: Install dependencies
