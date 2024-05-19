@@ -5,17 +5,13 @@ const { parse } = require('@babel/parser')
 const generator = require('@babel/generator').default
 const traverse = require('@babel/traverse').default
 const t = require('@babel/types')
-const vm = require('vm')
-const { VM } = require('vm2')
+const ivm = require('isolated-vm')
 const PluginEval = require('./eval.js')
 
-let globalContext = vm.createContext()
-let vm2 = new VM({
-  allowAsync: false,
-  sandbox: globalContext,
-})
+const isolate = new ivm.Isolate()
+const globalContext = isolate.createContextSync()
 function virtualGlobalEval(jsStr) {
-  return vm2.run(String(jsStr))
+  return globalContext.evalSync(String(jsStr))
 }
 
 function decodeGlobal(ast) {
@@ -166,6 +162,7 @@ function decodeGlobal(ast) {
   }
   refs.string_path.remove()
   // iterate refs
+  let cache = undefined
   for (let bind of binds.referencePaths) {
     if (bind.findParent((path) => path.removed)) {
       continue
@@ -173,7 +170,9 @@ function decodeGlobal(ast) {
     const parent = bind.parentPath
     if (parent.isCallExpression() && bind.listKey === 'arguments') {
       // This is the rotate function.
-      // However, we can delete it later.
+      // If it's in a sequence expression, it can be handled together.
+      // Or, we should handle it after this iteration.
+      cache = parent
       continue
     }
     if (parent.isSequenceExpression()) {
@@ -189,7 +188,7 @@ function decodeGlobal(ast) {
       }
       continue
     }
-    if (t.isVariableDeclarator(parent.node)) {
+    if (parent.isVariableDeclarator()) {
       // main decrypt val
       let top = parent.getFunctionParent()
       while (top.getFunctionParent()) {
@@ -200,7 +199,8 @@ function decodeGlobal(ast) {
       top.remove()
       continue
     }
-    if (t.isCallExpression(parent.node) && !parent.node.arguments.length) {
+    if (parent.isCallExpression() && !parent.node.arguments.length) {
+      // main decrypt val
       if (!t.isVariableDeclarator(parent.parentPath.node)) {
         continue
       }
@@ -211,7 +211,23 @@ function decodeGlobal(ast) {
       decrypt_code[2] = top.node
       decrypt_val = top.node.id.name
       top.remove()
+      continue
     }
+    if (parent.isExpressionStatement()) {
+      parent.remove()
+      continue
+    }
+    console.warn(`Unexpected ref var_string_table: ${parent}`)
+  }
+  // If rotateFunction is detected but not handled, we should handle it now.
+  if (decrypt_code.length === 3 && cache) {
+    if (cache.parentPath.isExpressionStatement()) {
+      decrypt_code.push(cache.parent)
+      cache = cache.parentPath
+    } else {
+      decrypt_code.push(t.expressionStatement(cache.node))
+    }
+    cache.remove()
   }
   if (!decrypt_val) {
     console.error('Cannot find decrypt variable')
@@ -321,7 +337,12 @@ function unpackCall(path) {
     if (!t.isObjectProperty(prop)) {
       return
     }
-    let key = prop.key.value
+    let key
+    if (t.isIdentifier(prop.key)) {
+      key = prop.key.name
+    } else {
+      key = prop.key.value
+    }
     if (t.isFunctionExpression(prop.value)) {
       // 符合要求的函数必须有且仅有一条return语句
       if (prop.value.body.body.length !== 1) {
@@ -668,7 +689,7 @@ function removeUniqueCall(path) {
   } else if (up1.key === 'init') {
     let up2 = up1.parentPath
     let call = up2.node.id.name
-    console.info(`Remove call: ${decorator}`)
+    console.info(`Remove call: ${call}`)
     let bind2 = up2.scope.getBinding(call)
     up2.remove()
     for (let ref of bind2.referencePaths) {
@@ -770,6 +791,41 @@ function unlockLint(path) {
   removeUniqueCall(rm)
 }
 
+function unlockDomainLock(path) {
+  const array_list = [
+    '[7,116,5,101,3,117,0,100]',
+    '[5,110,0,100]',
+    '[7,110,0,108]',
+    '[7,101,0,104]',
+  ]
+  const checkArray = (node) => {
+    const trim = node.split(' ').join('')
+    for (let i = 0; i < 4; ++i) {
+      if (array_list[i] == trim) {
+        return i + 1
+      }
+    }
+    return 0
+  }
+  if (path.findParent((up) => up.removed)) {
+    return
+  }
+  let mask = 1 << checkArray('' + path)
+  if (mask == 1) {
+    return
+  }
+  let rm = path.getFunctionParent()
+  rm.traverse({
+    ArrayExpression: function (item) {
+      mask = mask | (1 << checkArray('' + item))
+    },
+  })
+  if (mask & 0b11110) {
+    console.info('Find domain lock')
+    removeUniqueCall(rm)
+  }
+}
+
 function unlockEnv(ast) {
   // 删除`禁止控制台调试`函数
   traverse(ast, { DebuggerStatement: unlockDebugger })
@@ -777,22 +833,44 @@ function unlockEnv(ast) {
   traverse(ast, { VariableDeclarator: unlockConsole })
   // 删除`禁止换行`函数
   traverse(ast, { StringLiteral: unlockLint })
+  // 删除`安全域名`函数
+  traverse(ast, { ArrayExpression: unlockDomainLock })
 }
 
+/**
+ * If a function acts as follows:
+ * A = function (p1, p2) { return p1 + p2 }
+ *
+ * Convert its call to a binary expression:
+ * A(a, b) => a + b
+ */
 function purifyFunction(path) {
-  const node = path.node
-  if (!t.isIdentifier(node.left) || !t.isFunctionExpression(node.right)) {
+  const left = path.get('left')
+  const right = path.get('right')
+  if (!left.isIdentifier() || !right.isFunctionExpression()) {
     return
   }
-  const name = node.left.name
-  if (node.right.body.body.length !== 1) {
+  const name = left.node.name
+  const params = right.node.params
+  if (params.length !== 2) {
     return
   }
-  let retStmt = node.right.body.body[0]
+  const name1 = params[0].name
+  const name2 = params[1].name
+  if (right.node.body.body.length !== 1) {
+    return
+  }
+  let retStmt = right.node.body.body[0]
   if (!t.isReturnStatement(retStmt)) {
     return
   }
   if (!t.isBinaryExpression(retStmt.argument, { operator: '+' })) {
+    return
+  }
+  if (
+    retStmt.argument.left?.name !== name1 ||
+    retStmt.argument.right?.name !== name2
+  ) {
     return
   }
   const fnPath = path.getFunctionParent() || path.scope.path

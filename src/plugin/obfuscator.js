@@ -7,27 +7,28 @@ const { parse } = require('@babel/parser')
 const generator = require('@babel/generator').default
 const traverse = require('@babel/traverse').default
 const t = require('@babel/types')
-const vm = require('vm')
-const { VM } = require('vm2')
+const ivm = require('isolated-vm')
+const PluginEval = require('./eval.js')
 
-let globalContext = vm.createContext()
-let vm2 = new VM({
-  allowAsync: false,
-  sandbox: globalContext,
-})
+const isolate = new ivm.Isolate()
+const globalContext = isolate.createContextSync()
 function virtualGlobalEval(jsStr) {
-  return vm2.run(String(jsStr))
+  return globalContext.evalSync(String(jsStr))
 }
 
+/**
+ * Extract the literal value of an object, and remove an object if all
+ * references to the object are replaced.
+ */
 function decodeObject(ast) {
-  let obj_node = {}
   function collectObject(path) {
     const id = path.node.id
     const init = path.node.init
     if (!t.isIdentifier(id) || !t.isObjectExpression(init)) {
       return
     }
-    const name = id.name
+    const obj_name = id.name
+    const bind = path.scope.getBinding(obj_name)
     let valid = true
     let count = 0
     let obj = {}
@@ -46,50 +47,32 @@ function decodeObject(ast) {
     if (!valid || !count) {
       return
     }
-    obj_node[name] = obj
+    let safe = true
+    for (let ref of bind.referencePaths) {
+      const parent = ref.parentPath
+      if (ref.key !== 'object' || !parent.isMemberExpression()) {
+        safe = false
+        continue
+      }
+      const key = parent.node.property
+      if (!t.isIdentifier(key) || parent.node.computed) {
+        safe = false
+        continue
+      }
+      if (Object.prototype.hasOwnProperty.call(obj, key.name)) {
+        parent.replaceWith(obj[key.name])
+      } else {
+        safe = false
+      }
+    }
+    bind.scope.crawl()
+    if (safe) {
+      path.remove()
+      console.log(`删除对象: ${obj_name}`)
+    }
   }
   traverse(ast, {
     VariableDeclarator: collectObject,
-  })
-  let obj_used = {}
-  function replaceObject(path) {
-    const name = path.node.object
-    const key = path.node.property
-    if (!t.isIdentifier(name) || !t.isIdentifier(key)) {
-      return
-    }
-    if (!Object.prototype.hasOwnProperty.call(obj_node, name.name)) {
-      return
-    }
-    if (t.isIdentifier(key) && path.node.computed) {
-      // In this case, the identifier points to another value
-      return
-    }
-    path.replaceWith(obj_node[name.name][key.name])
-    obj_used[name.name] = true
-  }
-  traverse(ast, {
-    MemberExpression: replaceObject,
-  })
-  function deleteObject(path) {
-    const id = path.node.id
-    const init = path.node.init
-    if (!t.isIdentifier(id) || !t.isObjectExpression(init)) {
-      return
-    }
-    const name = id.name
-    if (!Object.prototype.hasOwnProperty.call(obj_node, name)) {
-      return
-    }
-    path.remove()
-    let used = 'false'
-    if (Object.prototype.hasOwnProperty.call(obj_used, name)) {
-      used = 'true'
-    }
-    console.log(`删除对象: ${name} -> ${used}`)
-  }
-  traverse(ast, {
-    VariableDeclarator: deleteObject,
   })
   return ast
 }
@@ -127,7 +110,7 @@ function stringArrayV2(ast) {
     // >= 2.10.0
     const fp1 = `(){try{if()break${arr}push(${arr}shift())}catch(){${arr}push(${arr}shift())}}`
     // < 2.10.0
-    const fp2 = `const=function(){while(--){${arr}push(${arr}shift)}}${cmpV}`
+    const fp2 = `=function(){while(--){${arr}push(${arr}shift)}}${cmpV}`
     const code = '' + callee.get('body')
     if (!checkPattern(code, fp1) && !checkPattern(code, fp2)) {
       return
@@ -488,6 +471,7 @@ function stringArrayLite(ast) {
         if (
           !ref.parentPath.isMemberExpression() ||
           ref.key !== 'object' ||
+          ref.parentPath.key == 'left' ||
           !t.isNumericLiteral(ref.parent.property)
         ) {
           return
@@ -546,7 +530,7 @@ function mergeObject(path) {
   let name = id.name
   let scope = path.scope
   let binding = scope.getBinding(name)
-  if (!binding || binding.kind !== 'const') {
+  if (!binding || !binding.constant) {
     // 确认该对象没有被多次定义
     return
   }
@@ -642,7 +626,7 @@ function mergeObject(path) {
       continue
     }
     let child = up1.node.id.name
-    if (!up1.scope.bindings[child].constant) {
+    if (!up1.scope.bindings[child]?.constant) {
       continue
     }
     up1.scope.rename(child, name, up1.scope.block)
@@ -1352,10 +1336,16 @@ function unlockEnv(ast) {
   return ast
 }
 
-module.exports = function (jscode) {
+module.exports = function (code) {
+  let ret = PluginEval.unpack(code)
+  let global_eval = false
+  if (ret) {
+    global_eval = true
+    code = ret
+  }
   let ast
   try {
-    ast = parse(jscode, { errorRecovery: true })
+    ast = parse(code, { errorRecovery: true })
   } catch (e) {
     console.error(`Cannot parse code: ${e.reasonCode}`)
     return null
@@ -1400,9 +1390,12 @@ module.exports = function (jscode) {
   console.log('解除环境限制...')
   ast = unlockEnv(ast)
   console.log('净化完成')
-  let { code } = generator(ast, {
+  code = generator(ast, {
     comments: false,
     jsescOption: { minimal: true },
-  })
+  }).code
+  if (global_eval) {
+    code = PluginEval.pack(code)
+  }
   return code
 }
