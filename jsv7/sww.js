@@ -12,7 +12,6 @@ export soy_sww_data='请求头authorization不要Bearer '
 
 
 
-
 const $ = new Env("爽歪歪")
 const author = '作者TG_ID:@ls_soy';
 const notify = $.isNode() ? require('./sendNotify.js') : '';
