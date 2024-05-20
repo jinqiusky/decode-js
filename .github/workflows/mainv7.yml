@@ -1,4 +1,4 @@
-name: Automated Decode JS
+name: Automated Decode JSv7
 
 on:
     push:
