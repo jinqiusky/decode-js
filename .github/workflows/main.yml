@@ -1,11 +1,11 @@
-name: Automated Decode JS
+name: Automated Decode JSob
 
 on:
     push:
      branches:
       - main # 或您想要监听的分支
      paths:
-      - 'js/**' # 监听 js 文件夹下的所有文件变动
+      - 'jsob/**' # 监听 js 文件夹下的所有文件变动
     workflow_dispatch: # 允许手动触发工作流
 
 jobs:
