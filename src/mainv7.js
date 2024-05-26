@@ -9,7 +9,7 @@ const PluginAwsc = require('./plugin/awsc.js');
 const common = require('./plugin/common.js');
 
 
-const folderPath = './jsob';
+const folderPath = './jsv7';
 // 读取文件夹下的所有文件名
 fs.readdir(folderPath, (err, files) => {
   if (err) {

@@ -1,11 +1,11 @@
-name: Automated Decode JSob
+name: Automated Decode JSv7
 
 on:
     push:
      branches:
       - main # 或您想要监听的分支
      paths:
-      - 'jsob/**' # 监听 js 文件夹下的所有文件变动
+      - 'jsv7/**' # 监听 js 文件夹下的所有文件变动
     workflow_dispatch: # 允许手动触发工作流
 
 jobs:
@@ -24,7 +24,7 @@ jobs:
     - name: Install dependencies
       run: npm install # 安装项目依赖
     - name: Run decode script
-      run: npm run deob # 执行package.json中的deob脚本
+      run: npm run desov7 # 执行package.json中的deob脚本
     - name: Commit and push changes
       run: |
         git config --global user.name 'github-actions[bot]'
