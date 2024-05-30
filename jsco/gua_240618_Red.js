@@ -24,7 +24,7 @@ $.getH5st_WQ_Arr = {};
 $.runArr = {};
 let liIIIlIi = {};
 const ll1l1Il1 = "2024/06/19 00:00:00+08:00";
-let I1llIiIl = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 8 * 60 * 60 * 1000;
+let I1llIiIl = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000;
 $.UVCookieArr = {};
 lr = {};
 $.UVCookie = "";
@@ -38,7 +38,7 @@ var IlI11IlI = "";
 try {
   IlI11IlI = require("tunnel");
 } catch (iI111I1I) {
-  console.log("请安装模块\"tunnel\"\n");
+  console.log("\u8BF7\u5B89\u88C5\u6A21\u5757\"tunnel\"\n");
 }
 var ilI1Il11 = "";
 try {
@@ -46,7 +46,7 @@ try {
     SocksProxyAgent: ilI1Il11
   } = require("socks-proxy-agent");
 } catch (l1liIii1) {
-  console.log("如果有用socks代理请安装模块\"socks-proxy-agent\"\n没有的话请忽略！\n");
+  console.log("\u5982\u679C\u6709\u7528socks\u4EE3\u7406\u8BF7\u5B89\u88C5\u6A21\u5757\"socks-proxy-agent\"\n\u6CA1\u6709\u7684\u8BDD\u8BF7\u5FFD\u7565\uFF01\n");
 }
 let liIiiili = false;
 $.proxyArrCount = 20;
@@ -64,7 +64,7 @@ if (proxyGetIpUrl) proxyGetIpUrl = proxyGetIpUrl.split("|").map(function (II1I1i
 $.proxyArrAll = {};
 $.proxyArr = {};
 proxyGetIpUrl.length > 0 && (liIiiili = true);
-liIiiili && console.log("开启代理");
+liIiiili && console.log("\u5F00\u542F\u4EE3\u7406");
 $.switchProxies = false;
 const il1IiI11 = {
   "exports": {}
@@ -74,24 +74,24 @@ ll11Ii();
 !(async () => {
   if (/https:\/\/u\.jd\.com\/.+/.test(lli11)) {
     if (lli11.split("/").pop()) lli11 = lli11.split("/").pop().split("?").shift();else {
-      console.log("请填写正确的rebateCode");
+      console.log("\u8BF7\u586B\u5199\u6B63\u786E\u7684rebateCode");
       return;
     }
   }
   if (!cookiesArr[0]) {
-    $.msg($.name, "【提示】请先获取cookie\n直接使用NobyDa的京东签到获取", "https://bean.m.jd.com/", {
+    $.msg($.name, "\u3010\u63D0\u793A\u3011\u8BF7\u5148\u83B7\u53D6cookie\n\u76F4\u63A5\u4F7F\u7528NobyDa\u7684\u4EAC\u4E1C\u7B7E\u5230\u83B7\u53D6", "https://bean.m.jd.com/", {
       "open-url": "https://bean.m.jd.com/"
     });
     return;
   }
   if (I1llIiIl > new Date(ll1l1Il1).getTime()) {
-    $.msg($.name, "活动已结束", "请删除此脚本");
+    $.msg($.name, "\u6D3B\u52A8\u5DF2\u7ED3\u675F", "\u8BF7\u5220\u9664\u6B64\u811A\u672C");
     $.setdata("", "JD_240618_Red");
     $.setdata("", "JD_240618_Red_pin");
     return;
   }
-  console.log("当前版本：2024年5月30日");
-  console.log("返利码：" + lli11.replace(/.+(.{3})/, "***$1") + "\n");
+  console.log("\u5F53\u524D\u7248\u672C\uFF1A2024\u5E745\u670830\u65E5");
+  console.log("\u8FD4\u5229\u7801\uFF1A" + lli11.replace(/.+(.{3})/, "***$1") + "\n");
   $.shareCodeArr = {};
   $.shareCodePinArr = $.getdata("JD_240618_Red_pin") || {};
   $.shareCode = "";
@@ -105,7 +105,7 @@ ll11Ii();
       $.UserName = decodeURIComponent(cookie.match(/pt_pin=([^; ]+)(?=;?)/) && cookie.match(/pt_pin=([^; ]+)(?=;?)/)[1]);
       $.index = llIillIi + 1;
       if ($.runArr[$.UserName]) continue;
-      console.log("\n\n******开始【京东账号" + $.index + "】" + ($.nickName || $.UserName) + "*********\n");
+      console.log("\n\n******\u5F00\u59CB\u3010\u4EAC\u4E1C\u8D26\u53F7" + $.index + "\u3011" + ($.nickName || $.UserName) + "*********\n");
       let ill1IllI = 1;
       IIll1iI = 4;
       !cookie.includes("app_open") && (ill1IllI = 2, IIll1iI = 2);
@@ -120,12 +120,12 @@ ll11Ii();
   }
   $.setdata($.shareCodePinArr, "JD_240618_Red_pin");
   if (message) {
-    $.msg($.name, "", "红包详情：\n" + message + "\nhttps://u.jd.com/" + lli11 + "\n\n跳转到app 可查看助力情况");
+    $.msg($.name, "", "\u7EA2\u5305\u8BE6\u60C5\uFF1A\n" + message + "\nhttps://u.jd.com/" + lli11 + "\n\n\u8DF3\u8F6C\u5230app \u53EF\u67E5\u770B\u52A9\u529B\u60C5\u51B5");
     if ($.isNode()) {}
   }
   message = "";
   if (Object.getOwnPropertyNames($.taskPinArr).length > 0) {
-    console.log("\n\n开始做任务");
+    console.log("\n\n\u5F00\u59CB\u505A\u4EFB\u52A1");
     liIiiili = false;
     $.proxyArr = {};
     for (let il1l1Ill = 0; il1l1Ill < cookiesArr.length; il1l1Ill++) {
@@ -134,7 +134,7 @@ ll11Ii();
         $.UserName = decodeURIComponent(cookie.match(/pt_pin=([^; ]+)(?=;?)/) && cookie.match(/pt_pin=([^; ]+)(?=;?)/)[1]);
         $.index = il1l1Ill + 1;
         if (!$.taskPinArr[$.UserName]) continue;
-        console.log("\n\n******开始【京东账号" + $.index + "】" + ($.nickName || $.UserName) + "*********\n");
+        console.log("\n\n******\u5F00\u59CB\u3010\u4EAC\u4E1C\u8D26\u53F7" + $.index + "\u3011" + ($.nickName || $.UserName) + "*********\n");
         let iiIiilI1 = 1;
         !cookie.includes("app_open") && (iiIiilI1 = 2);
         await IIiliil1(true, iiIiilI1);
@@ -143,7 +143,7 @@ ll11Ii();
       }
     }
     if (message) {
-      $.msg($.name, "", "任务详情：\n" + message);
+      $.msg($.name, "", "\u4EFB\u52A1\u8BE6\u60C5\uFF1A\n" + message);
       if ($.isNode()) {}
     }
   }
@@ -168,7 +168,7 @@ async function IIll1ilI(ii1iilII = 0) {
       $.url1 = "";
       await llIilIii();
       if (!$.url1) {
-        console.log("获取url1失败");
+        console.log("\u83B7\u53D6url1\u5931\u8D25");
         $.end = true;
         break;
       }
@@ -177,11 +177,11 @@ async function IIll1ilI(ii1iilII = 0) {
       $.UVCookieArr[$.UserName] = $.UVCookie + "";
       await illl1lI1();
       if (!$.url2) {
-        console.log("获取不到红包页面");
+        console.log("\u83B7\u53D6\u4E0D\u5230\u7EA2\u5305\u9875\u9762");
         break;
       }
       if (!/unionActId=\d+/.test($.url2) && !new RegExp("&d=" + lli11).test($.url2)) {
-        console.log("改返利url：https://u.jd.com/" + lli11 + " 可能不是红包页面");
+        console.log("\u6539\u8FD4\u5229url\uFF1Ahttps://u.jd.com/" + lli11 + " \u53EF\u80FD\u4E0D\u662F\u7EA2\u5305\u9875\u9762");
         $.runEnd = true;
         return;
       }
@@ -213,7 +213,7 @@ async function IIll1ilI(ii1iilII = 0) {
               continue;
             }
             $.getlj = false;
-            if ($.shareCode) console.log("助力[" + iill1i11 + "]");
+            if ($.shareCode) console.log("\u52A9\u529B[" + iill1i11 + "]");
             let iIliIli = await iiI1il($.shareCode.code, 1);
             if (/重复助力/.test(iIliIli)) {
               if (!$.shareCodePinArr[iill1i11]) $.shareCodePinArr[iill1i11] = [];
@@ -251,11 +251,11 @@ async function IIll1ilI(ii1iilII = 0) {
       if (redCount > 0 && redCount <= IIlIllI) break;
     } while ($.flag == 1 && l111I1l < 4);
     if ($.endFlag) return;
-    resMsg && (message += "【京东账号" + $.index + "】\n" + resMsg);
+    resMsg && (message += "\u3010\u4EAC\u4E1C\u8D26\u53F7" + $.index + "\u3011\n" + resMsg);
     if (i1Ii1lI) {}
     if (!$.proxyArr.host) {
       let i111llli = parseInt(Math.random() * 1000 + redTimes, 10);
-      console.log("等待 " + i111llli / 1000 + " 秒");
+      console.log("\u7B49\u5F85 " + i111llli / 1000 + " \u79D2");
       await $.wait(i111llli);
     }
   } catch (IliIIil1) {
@@ -302,7 +302,7 @@ function iiI1il(I1liiiii = "", IlI111Ii = 1) {
     $.UVCookie = IIllIi.getUVCookie("", "", $.url2, $.UVCookie);
     $.UVCookieArr[$.UserName] = $.UVCookie + "";
     let lIIillIi = "",
-      IliII1i1 = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 8 * 60 * 60 * 1000;
+      IliII1i1 = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000;
     const iilI1II = {
         "platform": IIll1iI,
         "unionActId": "31177",
@@ -349,7 +349,7 @@ function iiI1il(I1liiiii = "", IlI111Ii = 1) {
         if (i1II1iI) {
           var II1Iiiil = I111i1Ii(i1II1iI, i1iiIl11);
           console.log("" + $.toStr(i1II1iI));
-          console.log($.name + " getCoupons API请求失败，请检查网路重试");
+          console.log($.name + " getCoupons API\u8BF7\u6C42\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u7F51\u8DEF\u91CD\u8BD5");
           if (II1Iiiil) {
             await IIiliil1(false);
             if (!$.switchProxies) await iiI1il(...arguments);
@@ -358,27 +358,27 @@ function iiI1il(I1liiiii = "", IlI111Ii = 1) {
           let I1lIllll = $.toObj(lillIlil, lillIlil);
           if (typeof I1lIllll == "object") {
             I1lIllll.msg && (I1I1Il1i = I1lIllll.msg, console.log(I1lIllll.msg));
-            if (I1lIllll.msg.indexOf("不展示弹层") > -1 && IlI111Ii == 1) $.again = true;
-            if (I1lIllll.msg.indexOf("领取上限") === -1 && I1lIllll.msg.indexOf("登录") === -1) {
+            if (I1lIllll.msg.indexOf("\u4E0D\u5C55\u793A\u5F39\u5C42") > -1 && IlI111Ii == 1) $.again = true;
+            if (I1lIllll.msg.indexOf("\u9886\u53D6\u4E0A\u9650") === -1 && I1lIllll.msg.indexOf("\u767B\u5F55") === -1) {
               if (IlI111Ii == 1) $.flag = 1;
             }
-            if (I1lIllll.msg.indexOf("活动已结束") > -1 || I1lIllll.msg.indexOf("活动未开始") > -1) {
+            if (I1lIllll.msg.indexOf("\u6D3B\u52A8\u5DF2\u7ED3\u675F") > -1 || I1lIllll.msg.indexOf("\u6D3B\u52A8\u672A\u5F00\u59CB") > -1) {
               $.endFlag = true;
               return;
             }
-            I1liiiii && typeof I1lIllll.data !== "undefined" && typeof I1lIllll.data.joinNum !== "undefined" && console.log("当前" + I1lIllll.data.joinSuffix + ":" + I1lIllll.data.joinNum);
+            I1liiiii && typeof I1lIllll.data !== "undefined" && typeof I1lIllll.data.joinNum !== "undefined" && console.log("\u5F53\u524D" + I1lIllll.data.joinSuffix + ":" + I1lIllll.data.joinNum);
             if (I1lIllll.code == 0 && I1lIllll.data) {
               IlI111Ii == 1 && (typeof $.proxyArr.pin == "object" && !$.proxyArr.pin.includes($.UserName) && $.proxyArr.pin.push($.UserName), $.shareCode.count++);
               let II1iIIII = "";
               for (let illIiIl1 of I1lIllll.data.couponList) {
                 II1iIIII += "" + (II1iIIII ? "\n" : "");
                 $.getlj = true;
-                if (illIiIl1.type == 1) II1iIIII += "获得[红包]🧧" + illIiIl1.discount + "元 使用时间:" + $.time("yyyy-MM-dd", illIiIl1.beginTime) + " " + $.time("yyyy-MM-dd", illIiIl1.endTime);else {
-                  if (illIiIl1.type == 3) II1iIIII += "获得[优惠券]🎟️满" + illIiIl1.quota + "减" + illIiIl1.discount + " 使用时间:" + $.time("yyyy-MM-dd", illIiIl1.beginTime) + " " + $.time("yyyy-MM-dd", illIiIl1.endTime);else {
-                    if (illIiIl1.type == 6) II1iIIII += "获得[打折券]🎫满" + illIiIl1.quota + "打" + illIiIl1.discount * 10 + "折 使用时间:" + $.time("yyyy-MM-dd", illIiIl1.beginTime) + " " + $.time("yyyy-MM-dd", illIiIl1.endTime);else {
-                      if (illIiIl1.type == 17) II1iIIII += "获得[" + (illIiIl1.shopName || "京东支付立减") + "] " + (illIiIl1.limitStr && illIiIl1.limitStr + " " || "") + "领取之日起" + illIiIl1.limitTime + "天有效";else {
-                        var IilI1Iii = "未知";
-                        II1iIIII += "获得[" + (illIiIl1.shopName || IilI1Iii) + "] " + $.toStr(illIiIl1, illIiIl1);
+                if (illIiIl1.type == 1) II1iIIII += "\u83B7\u5F97[\u7EA2\u5305]\uD83E\uDDE7" + illIiIl1.discount + "\u5143 \u4F7F\u7528\u65F6\u95F4:" + $.time("yyyy-MM-dd", illIiIl1.beginTime) + " " + $.time("yyyy-MM-dd", illIiIl1.endTime);else {
+                  if (illIiIl1.type == 3) II1iIIII += "\u83B7\u5F97[\u4F18\u60E0\u5238]\uD83C\uDF9F\uFE0F\u6EE1" + illIiIl1.quota + "\u51CF" + illIiIl1.discount + " \u4F7F\u7528\u65F6\u95F4:" + $.time("yyyy-MM-dd", illIiIl1.beginTime) + " " + $.time("yyyy-MM-dd", illIiIl1.endTime);else {
+                    if (illIiIl1.type == 6) II1iIIII += "\u83B7\u5F97[\u6253\u6298\u5238]\uD83C\uDFAB\u6EE1" + illIiIl1.quota + "\u6253" + illIiIl1.discount * 10 + "\u6298 \u4F7F\u7528\u65F6\u95F4:" + $.time("yyyy-MM-dd", illIiIl1.beginTime) + " " + $.time("yyyy-MM-dd", illIiIl1.endTime);else {
+                      if (illIiIl1.type == 17) II1iIIII += "\u83B7\u5F97[" + (illIiIl1.shopName || "\u4EAC\u4E1C\u652F\u4ED8\u7ACB\u51CF") + "] " + (illIiIl1.limitStr && illIiIl1.limitStr + " " || "") + "\u9886\u53D6\u4E4B\u65E5\u8D77" + illIiIl1.limitTime + "\u5929\u6709\u6548";else {
+                        var IilI1Iii = "\u672A\u77E5";
+                        II1iIIII += "\u83B7\u5F97[" + (illIiIl1.shopName || IilI1Iii) + "] " + $.toStr(illIiIl1, illIiIl1);
                       }
                     }
                   }
@@ -387,9 +387,9 @@ function iiI1il(I1liiiii = "", IlI111Ii = 1) {
               II1iIIII && (resMsg += II1iIIII + "\n", console.log(II1iIIII));
             }
             if (IlI111Ii == 1 && typeof I1lIllll.data !== "undefined" && typeof I1lIllll.data.groupData !== "undefined" && typeof I1lIllll.data.groupData.groupInfo !== "undefined") {
-              var Iill1lIi = $.time("d", new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 8 * 60 * 60 * 1000);
+              var Iill1lIi = $.time("d", new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000);
               for (let l1lI1lI1 of I1lIllll.data.groupData.groupInfo || []) {
-                if (l1lI1lI1.status == 2) console.log("打卡满可以领取" + l1lI1lI1.hbPrize + "元红包🧧"), await $.wait(parseInt(Math.random() * 2000 + 2000, 10)), await iiI1il("", 3);else taskFlag + "" === "true" && l1lI1lI1.status == 1 && Iill1lIi == $.time("d", l1lI1lI1.dayTaskStartTime) && !$.taskPinArr[$.UserName] && ($.taskPinArr[$.UserName] = {
+                if (l1lI1lI1.status == 2) console.log("\u6253\u5361\u6EE1\u53EF\u4EE5\u9886\u53D6" + l1lI1lI1.hbPrize + "\u5143\u7EA2\u5305\uD83E\uDDE7"), await $.wait(parseInt(Math.random() * 2000 + 2000, 10)), await iiI1il("", 3);else taskFlag + "" === "true" && l1lI1lI1.status == 1 && Iill1lIi == $.time("d", l1lI1lI1.dayTaskStartTime) && !$.taskPinArr[$.UserName] && ($.taskPinArr[$.UserName] = {
                   "actId": $.actId,
                   "unionActId": "31177",
                   "platform": IIll1iI,
@@ -414,7 +414,7 @@ function IIiiI1l(Ililil1i = "") {
   return new Promise(illIiiI => {
     $.UVCookie = IIllIi.getUVCookie("", "", $.url2, $.UVCookie);
     $.UVCookieArr[$.UserName] = $.UVCookie + "";
-    let Il1lIll = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 8 * 60 * 60 * 1000;
+    let Il1lIll = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000;
     var III1Illi = {
       "actId": $.actId,
       "unionActId": "31177",
@@ -447,7 +447,7 @@ function IIiiI1l(Ililil1i = "") {
         if (i1lIiI1l) {
           var lIIIiIi = I111i1Ii(i1lIiI1l, IiliIiIi);
           console.log("" + $.toStr(i1lIiI1l));
-          console.log($.name + " showCoupon API请求失败，请检查网路重试");
+          console.log($.name + " showCoupon API\u8BF7\u6C42\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u7F51\u8DEF\u91CD\u8BD5");
           if (lIIIiIi) {
             await IIiliil1(false);
             if (!$.switchProxies) await IIiiI1l(...arguments);
@@ -456,10 +456,10 @@ function IIiiI1l(Ililil1i = "") {
           let lI1IIi = $.toObj(i1Ii1lli, i1Ii1lli);
           if (typeof lI1IIi == "object") {
             if (lI1IIi.msg) console.log(lI1IIi.msg);
-            if (lI1IIi.msg.indexOf("不展示弹层") > -1) $.again = true;
-            if (lI1IIi.msg.indexOf("领取上限") > -1) $.runArr[$.UserName] = true;
-            lI1IIi.msg.indexOf("上限") === -1 && lI1IIi.msg.indexOf("登录") === -1 && ($.flag = 1);
-            if (lI1IIi.msg.indexOf("活动已结束") > -1 || lI1IIi.msg.indexOf("活动未开始") > -1) {
+            if (lI1IIi.msg.indexOf("\u4E0D\u5C55\u793A\u5F39\u5C42") > -1) $.again = true;
+            if (lI1IIi.msg.indexOf("\u9886\u53D6\u4E0A\u9650") > -1) $.runArr[$.UserName] = true;
+            lI1IIi.msg.indexOf("\u4E0A\u9650") === -1 && lI1IIi.msg.indexOf("\u767B\u5F55") === -1 && ($.flag = 1);
+            if (lI1IIi.msg.indexOf("\u6D3B\u52A8\u5DF2\u7ED3\u675F") > -1 || lI1IIi.msg.indexOf("\u6D3B\u52A8\u672A\u5F00\u59CB") > -1) {
               $.endFlag = true;
               return;
             }
@@ -478,13 +478,13 @@ function IIiiI1l(Ililil1i = "") {
                 $.shareCodeArr[$.UserName].count = $.joinNum;
                 lii11ll1 = false;
               }
-              console.log("【账号" + $.index + "】" + ($.nickName || $.UserName) + " " + $.joinNum + "/" + ili1liIi + "人");
+              console.log("\u3010\u8D26\u53F7" + $.index + "\u3011" + ($.nickName || $.UserName) + " " + $.joinNum + "/" + ili1liIi + "\u4EBA");
             }
-            lI1IIi.msg.indexOf("活动已结束") > -1 && (lii11ll1 = false);
+            lI1IIi.msg.indexOf("\u6D3B\u52A8\u5DF2\u7ED3\u675F") > -1 && (lii11ll1 = false);
             if (typeof lI1IIi.data !== "undefined" && typeof lI1IIi.data.groupData !== "undefined" && typeof lI1IIi.data.groupData.groupInfo !== "undefined") {
-              var lI1lIi = $.time("d", new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 8 * 60 * 60 * 1000);
+              var lI1lIi = $.time("d", new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000);
               for (let I11I1III of lI1IIi.data.groupData.groupInfo || []) {
-                if (I11I1III.status == 2) console.log("打卡满可以领取" + I11I1III.hbPrize + "元红包🧧"), await $.wait(parseInt(Math.random() * 2000 + 2000, 10)), await iiI1il("", 3);else taskFlag + "" === "true" && I11I1III.status == 1 && lI1lIi == $.time("d", I11I1III.dayTaskStartTime) && !$.taskPinArr[$.UserName] && ($.taskPinArr[$.UserName] = {
+                if (I11I1III.status == 2) console.log("\u6253\u5361\u6EE1\u53EF\u4EE5\u9886\u53D6" + I11I1III.hbPrize + "\u5143\u7EA2\u5305\uD83E\uDDE7"), await $.wait(parseInt(Math.random() * 2000 + 2000, 10)), await iiI1il("", 3);else taskFlag + "" === "true" && I11I1III.status == 1 && lI1lIi == $.time("d", I11I1III.dayTaskStartTime) && !$.taskPinArr[$.UserName] && ($.taskPinArr[$.UserName] = {
                   "actId": $.actId,
                   "unionActId": "31177",
                   "platform": IIll1iI,
@@ -506,12 +506,12 @@ function IIiiI1l(Ililil1i = "") {
 }
 function IliIlIII() {
   if ($.shareCodeArr[$.UserName]) {
-    console.log("【账号" + $.index + "】缓存分享码:" + $.shareCodeArr[$.UserName].code.replace(/.+(.{3})/, "***$1"));
+    console.log("\u3010\u8D26\u53F7" + $.index + "\u3011\u7F13\u5B58\u5206\u4EAB\u7801:" + $.shareCodeArr[$.UserName].code.replace(/.+(.{3})/, "***$1"));
     return;
   }
   return new Promise(async iIIIIIli => {
     let Iliil1I = "",
-      l11l1lII = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 8 * 60 * 60 * 1000;
+      l11l1lII = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000;
     const i1IIIlIi = {
         "unionActId": "31177",
         "actId": $.actId,
@@ -553,7 +553,7 @@ function IliIlIII() {
         if (ii11IlI1) {
           var IllIl1I1 = I111i1Ii(ii11IlI1, liiIIlil);
           console.log("" + $.toStr(ii11IlI1));
-          console.log($.name + " shareUnionCoupon API请求失败，请检查网路重试");
+          console.log($.name + " shareUnionCoupon API\u8BF7\u6C42\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u7F51\u8DEF\u91CD\u8BD5");
           if (IllIl1I1) {
             await IIiliil1(false);
             if (!$.switchProxies) await IliIlIII();
@@ -563,7 +563,7 @@ function IliIlIII() {
           if (typeof I1III1i1 == "object") {
             if (I1III1i1.code == 0 && I1III1i1.data && I1III1i1.data.shareUrl) {
               let llllliil = I1III1i1.data.shareUrl.match(/\?s=([^&]+)/) && I1III1i1.data.shareUrl.match(/\?s=([^&]+)/)[1] || "";
-              llllliil && (console.log("【账号" + $.index + "】分享码：" + llllliil.replace(/.+(.{3})/, "***$1")), $.shareCodeArr[$.UserName] = {
+              llllliil && (console.log("\u3010\u8D26\u53F7" + $.index + "\u3011\u5206\u4EAB\u7801\uFF1A" + llllliil.replace(/.+(.{3})/, "***$1")), $.shareCodeArr[$.UserName] = {
                 "code": llllliil,
                 "count": $.joinNum
               });
@@ -595,7 +595,7 @@ function illl1lI1() {
         if (Ill1IiI1) {
           var iIllIlIi = I111i1Ii(Ill1IiI1, llIlil1l);
           console.log("" + $.toStr(Ill1IiI1));
-          console.log($.name + " getUrl1 API请求失败，请检查网路重试");
+          console.log($.name + " getUrl1 API\u8BF7\u6C42\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u7F51\u8DEF\u91CD\u8BD5");
           if (iIllIlIi) {
             await IIiliil1(false);
             if (!$.switchProxies) await illl1lI1();
@@ -626,7 +626,7 @@ function llIilIii() {
         if (ii1IIlI) {
           var ll1ii11i = I111i1Ii(ii1IIlI, iiII1ii);
           console.log("" + $.toStr(ii1IIlI));
-          console.log($.name + " getUrl API请求失败，请检查网路重试");
+          console.log($.name + " getUrl API\u8BF7\u6C42\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u7F51\u8DEF\u91CD\u8BD5");
           if (ll1ii11i) {
             await IIiliil1(false);
             if (!$.switchProxies) await llIilIii();
@@ -647,7 +647,7 @@ async function iI1llI1i() {
   await liIIIlIi["0d977"].__genAlgo();
   resMsg = "";
   await IIl1llI();
-  resMsg && (message += "【京东账号" + $.index + "】\n" + resMsg);
+  resMsg && (message += "\u3010\u4EAC\u4E1C\u8D26\u53F7" + $.index + "\u3011\n" + resMsg);
 }
 function IIl1llI(iiIl1iIl = 1) {
   return new Promise(lI1i111 => {
@@ -660,7 +660,7 @@ function IIl1llI(iiIl1iIl = 1) {
       "prstate": 0
     };
     let I1IiIlII = "",
-      II11ii1 = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 8 * 60 * 60 * 1000;
+      II11ii1 = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000;
     const iIll11iI = {
       "appid": "u_hongbao",
       "body": JSON.stringify(II1i1ili),
@@ -686,15 +686,15 @@ function IIl1llI(iiIl1iIl = 1) {
     var li1lIII = $;
     li1lIII.get(I1il11ll, async (ilI1IIll, ilI11i11, Illli1iI) => {
       try {
-        if (ilI1IIll) console.log("" + $.toStr(ilI1IIll)), console.log($.name + " dotask API请求失败，请检查网路重试");else {
+        if (ilI1IIll) console.log("" + $.toStr(ilI1IIll)), console.log($.name + " dotask API\u8BF7\u6C42\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u7F51\u8DEF\u91CD\u8BD5");else {
           var ilIIlil = $.toObj(Illli1iI, Illli1iI);
           if (ilIIlil.code == 200 && ilIIlil.data) {
             if (iiIl1iIl == 2) {
-              console.log("任务完成");
+              console.log("\u4EFB\u52A1\u5B8C\u6210");
               if (iiIl1iIl == 2 && ilIIlil.data.longGroupData && ilIIlil.data.longGroupData.groupInfo.length > 0) {
                 var llI1lli1 = ilIIlil.data.longGroupData.groupInfo;
                 for (let l1i1Ill1 of llI1lli1 || []) {
-                  l1i1Ill1.status == 2 && (console.log("打卡满可以领取" + l1i1Ill1.hbPrize + "元红包🧧"), await $.wait(parseInt(Math.random() * 2000 + 2000, 10)), await ilIiIliI("", 3));
+                  l1i1Ill1.status == 2 && (console.log("\u6253\u5361\u6EE1\u53EF\u4EE5\u9886\u53D6" + l1i1Ill1.hbPrize + "\u5143\u7EA2\u5305\uD83E\uDDE7"), await $.wait(parseInt(Math.random() * 2000 + 2000, 10)), await ilIiIliI("", 3));
                 }
               }
             } else {
@@ -702,17 +702,17 @@ function IIl1llI(iiIl1iIl = 1) {
                 var llI1lli1 = ilIIlil.data.dayGroupData.groupInfo,
                   IiIilll = 0;
                 for (let Ii1ii1l1 of llI1lli1) {
-                  if (Ii1ii1l1.taskType == 2 && Ii1ii1l1.status == 2) IiIilll++, console.log("领取邀请 " + Number(Ii1ii1l1.joinNum) + " 人奖励"), await ilIiIliI("", 2), await $.wait(2000);else {
-                    if (Ii1ii1l1.taskType == 100 && (Ii1ii1l1.status == 1 || Ii1ii1l1.status == 2)) Ii1ii1l1.status == 1 && (console.log("做任务", Ii1ii1l1.showInfo), await iIlIiiiI("", Ii1ii1l1.taskId), await $.wait(2000)), console.log("抽奖", Ii1ii1l1.showInfo), await ilIiIliI("", 8, Ii1ii1l1.taskId), await $.wait(2000);else {
+                  if (Ii1ii1l1.taskType == 2 && Ii1ii1l1.status == 2) IiIilll++, console.log("\u9886\u53D6\u9080\u8BF7 " + Number(Ii1ii1l1.joinNum) + " \u4EBA\u5956\u52B1"), await ilIiIliI("", 2), await $.wait(2000);else {
+                    if (Ii1ii1l1.taskType == 100 && (Ii1ii1l1.status == 1 || Ii1ii1l1.status == 2)) Ii1ii1l1.status == 1 && (console.log("\u505A\u4EFB\u52A1", Ii1ii1l1.showInfo), await iIlIiiiI("", Ii1ii1l1.taskId), await $.wait(2000)), console.log("\u62BD\u5956", Ii1ii1l1.showInfo), await ilIiIliI("", 8, Ii1ii1l1.taskId), await $.wait(2000);else {
                       if (Ii1ii1l1.adId && Ii1ii1l1.status == 1) {
-                        console.log("做任务", Ii1ii1l1.showInfo, Ii1ii1l1.taskId);
+                        console.log("\u505A\u4EFB\u52A1", Ii1ii1l1.showInfo, Ii1ii1l1.taskId);
                         await i1Iil1Ii(Ii1ii1l1.componentId, Ii1ii1l1.taskId, Ii1ii1l1.adInfo.target_url);
                         await $.wait(6000);
                         await IIl1llI(2);
                         await $.wait(2000);
                       } else {
                         if (Ii1ii1l1.taskType == 102 && Ii1ii1l1.status == 1) {
-                          console.log("做任务", Ii1ii1l1.showInfo);
+                          console.log("\u505A\u4EFB\u52A1", Ii1ii1l1.showInfo);
                           await $.wait(6000);
                           await Il1iiill(decodeURIComponent(Ii1ii1l1.taskTargetUrl));
                           await $.wait(2000);
@@ -722,8 +722,8 @@ function IIl1llI(iiIl1iIl = 1) {
                     }
                   }
                 }
-                IiIilll >= llI1lli1.length && console.log("任务已经做完了");
-              } else console.log("获取不到任务");
+                IiIilll >= llI1lli1.length && console.log("\u4EFB\u52A1\u5DF2\u7ECF\u505A\u5B8C\u4E86");
+              } else console.log("\u83B7\u53D6\u4E0D\u5230\u4EFB\u52A1");
             }
           } else console.log(ilIIlil);
         }
@@ -770,7 +770,7 @@ function Il1iiill(lI1lIl1I) {
     var lilili1i = $;
     lilili1i.get(i1il11il, async (iIi11ilI, liiiilI1, iiIl11lI) => {
       try {
-        if (iIi11ilI) console.log("" + $.toStr(iIi11ilI)), console.log($.name + " completeUnionTask API请求失败，请检查网路重试");else {
+        if (iIi11ilI) console.log("" + $.toStr(iIi11ilI)), console.log($.name + " completeUnionTask API\u8BF7\u6C42\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u7F51\u8DEF\u91CD\u8BD5");else {
           let iilIIi1 = $.toObj(iiIl11lI, iiIl11lI);
           typeof iilIIi1 == "object" && iilIIi1.code == 0 && iilIIi1.msg ? console.log(iilIIi1.msg) : console.log(iiIl11lI);
         }
@@ -785,7 +785,7 @@ function Il1iiill(lI1lIl1I) {
 function iIlIiiiI(llIlill, lIIli1II) {
   return new Promise(async II1lI1l => {
     let ll1Ii11i = "",
-      ll1lIl = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 8 * 60 * 60 * 1000;
+      ll1lIl = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000;
     const iIllilli = {
         "unionActId": "31177",
         "actId": $.taskPinArr[$.UserName].actId,
@@ -823,7 +823,7 @@ function iIlIiiiI(llIlill, lIIli1II) {
     var II1li1l = $;
     II1li1l.get(iII1l11, async (lililil1, iiIIii1, ii1lIIlI) => {
       try {
-        if (lililil1) console.log("" + $.toStr(lililil1)), console.log($.name + " doTaskUnionShare API请求失败，请检查网路重试");else {
+        if (lililil1) console.log("" + $.toStr(lililil1)), console.log($.name + " doTaskUnionShare API\u8BF7\u6C42\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u7F51\u8DEF\u91CD\u8BD5");else {
           let iIIil1I1 = $.toObj(ii1lIIlI, ii1lIIlI);
           if (typeof iIIil1I1 == "object") {} else console.log(ii1lIIlI);
         }
@@ -838,7 +838,7 @@ function iIlIiiiI(llIlill, lIIli1II) {
 function ilIiIliI(ll1III1i = "", i1illI1 = 8, Iil1liII = "") {
   return new Promise(async lI11I11i => {
     let Ili1l1Ii = "",
-      I1iI111I = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 8 * 60 * 60 * 1000;
+      I1iI111I = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000;
     var iIiIl1II = {
       "platform": $.taskPinArr[$.UserName].platform,
       "unionActId": "31177",
@@ -882,7 +882,7 @@ function ilIiIliI(ll1III1i = "", i1illI1 = 8, Iil1liII = "") {
     var I11ll1I = $;
     I11ll1I.post(iI1iliIi, async (I1i1iil, Ii1ll1I, IlIIll) => {
       try {
-        if (I1i1iil) console.log("" + $.toStr(I1i1iil)), console.log($.name + " doTaskGetCoupons API请求失败，请检查网路重试");else {
+        if (I1i1iil) console.log("" + $.toStr(I1i1iil)), console.log($.name + " doTaskGetCoupons API\u8BF7\u6C42\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u7F51\u8DEF\u91CD\u8BD5");else {
           let lIIliIli = $.toObj(IlIIll, IlIIll);
           if (typeof lIIliIli == "object") {
             lIIliIli.msg && (iil1Iil = lIIliIli.msg, console.log(lIIliIli.msg));
@@ -891,12 +891,12 @@ function ilIiIliI(ll1III1i = "", i1illI1 = 8, Iil1liII = "") {
               for (let iili1II of lIIliIli.data.couponList) {
                 i1iilIlI += "" + (i1iilIlI ? "\n" : "");
                 $.getlj = true;
-                if (iili1II.type == 1) i1iilIlI += "获得[红包]🧧" + iili1II.discount + "元 使用时间:" + $.time("yyyy-MM-dd", iili1II.beginTime) + " " + $.time("yyyy-MM-dd", iili1II.endTime);else {
-                  if (iili1II.type == 3) i1iilIlI += "获得[优惠券]🎟️满" + iili1II.quota + "减" + iili1II.discount + " 使用时间:" + $.time("yyyy-MM-dd", iili1II.beginTime) + " " + $.time("yyyy-MM-dd", iili1II.endTime);else {
-                    if (iili1II.type == 6) i1iilIlI += "获得[打折券]🎫满" + iili1II.quota + "打" + iili1II.discount * 10 + "折 使用时间:" + $.time("yyyy-MM-dd", iili1II.beginTime) + " " + $.time("yyyy-MM-dd", iili1II.endTime);else {
-                      if (iili1II.type == 17) i1iilIlI += "获得[" + (iili1II.shopName || "京东支付立减") + "] " + (iili1II.limitStr && iili1II.limitStr + " " || "") + "领取之日起" + iili1II.limitTime + "天有效";else {
-                        var llI1llI = "未知";
-                        i1iilIlI += "获得[" + (iili1II.shopName || llI1llI) + "] " + $.toStr(iili1II, iili1II);
+                if (iili1II.type == 1) i1iilIlI += "\u83B7\u5F97[\u7EA2\u5305]\uD83E\uDDE7" + iili1II.discount + "\u5143 \u4F7F\u7528\u65F6\u95F4:" + $.time("yyyy-MM-dd", iili1II.beginTime) + " " + $.time("yyyy-MM-dd", iili1II.endTime);else {
+                  if (iili1II.type == 3) i1iilIlI += "\u83B7\u5F97[\u4F18\u60E0\u5238]\uD83C\uDF9F\uFE0F\u6EE1" + iili1II.quota + "\u51CF" + iili1II.discount + " \u4F7F\u7528\u65F6\u95F4:" + $.time("yyyy-MM-dd", iili1II.beginTime) + " " + $.time("yyyy-MM-dd", iili1II.endTime);else {
+                    if (iili1II.type == 6) i1iilIlI += "\u83B7\u5F97[\u6253\u6298\u5238]\uD83C\uDFAB\u6EE1" + iili1II.quota + "\u6253" + iili1II.discount * 10 + "\u6298 \u4F7F\u7528\u65F6\u95F4:" + $.time("yyyy-MM-dd", iili1II.beginTime) + " " + $.time("yyyy-MM-dd", iili1II.endTime);else {
+                      if (iili1II.type == 17) i1iilIlI += "\u83B7\u5F97[" + (iili1II.shopName || "\u4EAC\u4E1C\u652F\u4ED8\u7ACB\u51CF") + "] " + (iili1II.limitStr && iili1II.limitStr + " " || "") + "\u9886\u53D6\u4E4B\u65E5\u8D77" + iili1II.limitTime + "\u5929\u6709\u6548";else {
+                        var llI1llI = "\u672A\u77E5";
+                        i1iilIlI += "\u83B7\u5F97[" + (iili1II.shopName || llI1llI) + "] " + $.toStr(iili1II, iili1II);
                       }
                     }
                   }
@@ -924,7 +924,7 @@ function llI11Il(ll1lli1l, IIl111li) {
       "itemId": "1"
     };
     let l111liil = "",
-      li1iIlIi = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 8 * 60 * 60 * 1000;
+      li1iIlIi = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000;
     const lIiiii1i = {
       "appid": "u_hongbao",
       "body": JSON.stringify(ilIIl1l),
@@ -950,7 +950,7 @@ function llI11Il(ll1lli1l, IIl111li) {
     var li1II1i = $;
     li1II1i.get(I1I1l, async (I11l1iii, llll1iII, i11I1ll1) => {
       try {
-        if (I11l1iii) console.log("" + $.toStr(I11l1iii)), console.log($.name + " dotask API请求失败，请检查网路重试");else {
+        if (I11l1iii) console.log("" + $.toStr(I11l1iii)), console.log($.name + " dotask API\u8BF7\u6C42\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u7F51\u8DEF\u91CD\u8BD5");else {
           var iliIII1l = $.toObj(i11I1ll1, i11I1ll1);
           iliIII1l.code == 0 ? console.log(iliIII1l.msg) : console.log(iliIII1l);
         }
@@ -971,7 +971,7 @@ function i1Iil1Ii(llI1i1lI, l1lII, liI1lI1l) {
       "jumpType": 1
     };
     let IlIiii1i = "",
-      Ill1li1I = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 8 * 60 * 60 * 1000;
+      Ill1li1I = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000;
     const IiI11iI1 = {
       "appid": "u_hongbao",
       "body": JSON.stringify(lii1il1),
@@ -998,7 +998,7 @@ function i1Iil1Ii(llI1i1lI, l1lII, liI1lI1l) {
     var IIi1ll11 = $;
     IIi1ll11.post(i1I1I1Il, async (I11li1, I1i1llI, I1iIilli) => {
       try {
-        if (I11li1) console.log("" + $.toStr(I11li1)), console.log($.name + " dotask API请求失败，请检查网路重试");
+        if (I11li1) console.log("" + $.toStr(I11li1)), console.log($.name + " dotask API\u8BF7\u6C42\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u7F51\u8DEF\u91CD\u8BD5");
       } catch (Ii1Il1) {
         $.logErr(Ii1Il1, I1i1llI);
       } finally {
@@ -1010,7 +1010,7 @@ function i1Iil1Ii(llI1i1lI, l1lII, liI1lI1l) {
 function il1iIiI1(iilii1I, lIli1ili, i11liIli) {
   return new Promise(l1Iii1ll => {
     var I11liII = "{\"dataSource\":\"babelInteractive\",\"method\":\"customDoInteractiveAssignmentForBabel\",\"reqParams\":\"{\\\"itemId\\\":\\\"1\\\",\\\"encryptProjectId\\\":\\\"" + iilii1I + "\\\",\\\"encryptAssignmentId\\\":\\\"" + lIli1ili + "\\\"}\",\"sdkVersion\":\"1.0.0\",\"clientLanguage\":\"zh\"}";
-    let I1lIi1II = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 8 * 60 * 60 * 1000,
+    let I1lIi1II = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000,
       i1liilIi = "https://api.m.jd.com/?client=wh5&clientVersion=1.0.0&functionId=qryViewkitCallbackResult&body=" + I11liII + "&_timestamp=" + I1lIi1II;
     origin = i11liIli.match(/(https:\/\/\S{3,7}[\.m]{0,}\.jd\.com)/) && i11liIli.match(/(https:\/\/\S{3,7}[\.m]{0,}\.jd\.com)/)[1] || "";
     let I1ili1I = {
@@ -1028,7 +1028,7 @@ function il1iIiI1(iilii1I, lIli1ili, i11liIli) {
     var llll1Il = $;
     llll1Il.get(I1ili1I, async (IIlIl1, lIIi1Ill, liil1I) => {
       try {
-        if (IIlIl1) console.log("" + $.toStr(IIlIl1)), console.log($.name + " callbackResult API请求失败，请检查网路重试");else {
+        if (IIlIl1) console.log("" + $.toStr(IIlIl1)), console.log($.name + " callbackResult API\u8BF7\u6C42\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u7F51\u8DEF\u91CD\u8BD5");else {
           var iillIi = $.toObj(liil1I, liil1I);
           iillIi.code == 0 ? console.log(iillIi.msg) : console.log(iillIi);
         }
@@ -1058,18 +1058,18 @@ function I111i1Ii(lIIIiI1i, I1iI11ii) {
   var iI1lIii = false;
   if (liIiiili) {
     if (/statusCode=407/.test(lIIIiI1i)) {
-      console.log("代理连接失败");
+      console.log("\u4EE3\u7406\u8FDE\u63A5\u5931\u8D25");
       iI1lIii = true;
       if ($.getProxyIp) for (let ilI1iIi1 of proxyGetIpUrl) {
         if (!ilI1iIi1 || ilI1iIi1.status == false) continue;
         if (ilI1iIi1.proxyArr && ilI1iIi1.proxyArr.host == $.proxyArr.host && ilI1iIi1.proxyArr.port == $.proxyArr.port) {
           ilI1iIi1.errorCount++;
-          ilI1iIi1.errorCount >= 3 && (console.log("代理池(" + ilI1iIi1.index + ")请求多次失败，禁用"), ilI1iIi1.status = false);
+          ilI1iIi1.errorCount >= 3 && (console.log("\u4EE3\u7406\u6C60(" + ilI1iIi1.index + ")\u8BF7\u6C42\u591A\u6B21\u5931\u8D25\uFF0C\u7981\u7528"), ilI1iIi1.status = false);
           break;
         }
       }
     } else {
-      if (/ESOCKETTIMEDOUT|Timeout awaiting|ETIMEDOUT/.test(lIIIiI1i)) console.log("请求超时"), iI1lIii = true;else /socket|connect ECONNREFUSED/.test(lIIIiI1i) && (console.log("代理连接失败"), iI1lIii = true);
+      if (/ESOCKETTIMEDOUT|Timeout awaiting|ETIMEDOUT/.test(lIIIiI1i)) console.log("\u8BF7\u6C42\u8D85\u65F6"), iI1lIii = true;else /socket|connect ECONNREFUSED/.test(lIIIiI1i) && (console.log("\u4EE3\u7406\u8FDE\u63A5\u5931\u8D25"), iI1lIii = true);
     }
   }
   return iI1lIii && ($.switchProxies = true), iI1lIii;
@@ -1129,11 +1129,11 @@ function iI111ilI(iIII11I1) {
       "timeout": 10000
     }, async (liIl1111, i1l1iiI, lIi1III) => {
       try {
-        if (liIl1111) console.log("" + $.toStr(liIl1111)), console.log($.name + " 获取ip代理池(" + iIII11I1.index + ") API请求失败，请检查网路重试");else {
+        if (liIl1111) console.log("" + $.toStr(liIl1111)), console.log($.name + " \u83B7\u53D6ip\u4EE3\u7406\u6C60(" + iIII11I1.index + ") API\u8BF7\u6C42\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u7F51\u8DEF\u91CD\u8BD5");else {
           let IiiiliI = $.toStr(lIi1III, lIi1III),
             lili1lII = IiiiliI.match(/((\d{0,3}\.){3}\d{0,3}):(\d{0,5})/);
           if (lili1lII && lili1lII.length == 4) {
-            $.switchProxies && ($.proxyArr.host != lili1lII[1] || $.proxyArr.port != lili1lII[3] ? console.log("切换成功！") : console.log("切换失败，IP不变！"));
+            $.switchProxies && ($.proxyArr.host != lili1lII[1] || $.proxyArr.port != lili1lII[3] ? console.log("\u5207\u6362\u6210\u529F\uFF01") : console.log("\u5207\u6362\u5931\u8D25\uFF0CIP\u4E0D\u53D8\uFF01"));
             iliI11I = false;
             $.proxyArr.host = lili1lII[1];
             $.proxyArr.port = lili1lII[3];
@@ -1150,7 +1150,7 @@ function iI111ilI(iIII11I1) {
             $.getProxyIp = true;
             iIII11I1.count = 0;
             iIII11I1.proxyArr = $.proxyArr;
-          } else console.log("获取ip代理池(" + iIII11I1.index + ")失败\n" + lIi1III), /订单不存在|key无效|无可用余量|过期|充值|续费|登陆|为空|添加|联系|未检索|Error/.test(lIi1III) && (iIII11I1.count = 999);
+          } else console.log("\u83B7\u53D6ip\u4EE3\u7406\u6C60(" + iIII11I1.index + ")\u5931\u8D25\n" + lIi1III), /订单不存在|key无效|无可用余量|过期|充值|续费|登陆|为空|添加|联系|未检索|Error/.test(lIi1III) && (iIII11I1.count = 999);
         }
       } catch (IIlII111) {
         $.logErr(IIlII111, i1l1iiI);
@@ -1189,13 +1189,13 @@ async function IIiliil1(IilIIIil = true, ll11II1i = 1) {
             if (!i1IlIl1i || i1IlIl1i.status == false) continue;
             I1l1lill = await iI111ilI(i1IlIl1i);
             if (!I1l1lill) break;
-            i1IlIl1i.count >= 3 && (console.log("代理池(" + i1IlIl1i.index + ")获取多次失败，禁用"), i1IlIl1i.status = false);
+            i1IlIl1i.count >= 3 && (console.log("\u4EE3\u7406\u6C60(" + i1IlIl1i.index + ")\u83B7\u53D6\u591A\u6B21\u5931\u8D25\uFF0C\u7981\u7528"), i1IlIl1i.status = false);
           }
           iiii111++;
         } while (I1l1lill && iiii111 <= 4);
       } else proxyGetIpUrl && $.proxyArr.host && (I1l1lill = false);
-      I1l1lill && ($.proxyArr = {}, console.log("无可用代理地址，使用本地IP\n"));
-      if ($.proxyArr.host && $.proxyArr.port) console.log("代理" + ($.getProxyIp ? "池" : "") + "地址:" + $.proxyArr.host + ":" + $.proxyArr.port + "\n");
+      I1l1lill && ($.proxyArr = {}, console.log("\u65E0\u53EF\u7528\u4EE3\u7406\u5730\u5740\uFF0C\u4F7F\u7528\u672C\u5730IP\n"));
+      if ($.proxyArr.host && $.proxyArr.port) console.log("\u4EE3\u7406" + ($.getProxyIp ? "\u6C60" : "") + "\u5730\u5740:" + $.proxyArr.host + ":" + $.proxyArr.port + "\n");
       $.switchProxies = false;
     }
   } catch (l1l11lil) {
@@ -1206,7 +1206,7 @@ function I11i1iil(I11l11l1) {
   if (typeof I11l11l1 == "string") try {
     return JSON.parse(I11l11l1);
   } catch (lI111lii) {
-    return console.log(lI111lii), $.msg($.name, "", "请勿随意在BoxJs输入框修改内容\n建议通过脚本去获取cookie"), [];
+    return console.log(lI111lii), $.msg($.name, "", "\u8BF7\u52FF\u968F\u610F\u5728BoxJs\u8F93\u5165\u6846\u4FEE\u6539\u5185\u5BB9\n\u5EFA\u8BAE\u901A\u8FC7\u811A\u672C\u53BB\u83B7\u53D6cookie"), [];
   }
 }
 async function i1II1lI() {
@@ -2077,7 +2077,7 @@ function II1Il1ii() {
         function IilIII11(iIiIlil1) {
           return 4294967296 * (iIiIlil1 - (0 | iIiIlil1)) | 0;
         }
-        for (var IlliIlI = 2, IiiI1III = 0; IiiI1III < 64;) ilII1i1(IlliIlI) && (IiiI1III < 8 && (IiIlII1l[IiiI1III] = IilIII11(illiiliI.pow(IlliIlI, 0.5))), i1Illill[IiiI1III] = IilIII11(illiiliI.pow(IlliIlI, 1 / 3)), IiiI1III++), IlliIlI++;
+        for (var IlliIlI = 2, IiiI1III = 0; IiiI1III < 64;) ilII1i1(IlliIlI) && (IiiI1III < 8 && (IiIlII1l[IiiI1III] = IilIII11(illiiliI.pow(IlliIlI, 0.5))), i1Illill[IiiI1III] = IilIII11(illiiliI.pow(IlliIlI, 0.3333333333333333)), IiiI1III++), IlliIlI++;
       }();
       var illll1l = [],
         i11I11l = il1Illi1.SHA256 = Iiii1Ili.extend({
@@ -2856,7 +2856,7 @@ function II1Il1ii() {
         function IIlil1l1(i11iI1Il) {
           return 4294967296 * (i11iI1Il - (0 | i11iI1Il)) | 0;
         }
-        for (var iIlii11I = 2, llilII1I = 0; llilII1I < 64;) Il11Ii(iIlii11I) && (llilII1I < 8 && (liIIllIi[llilII1I] = IIlil1l1(iIililII.pow(iIlii11I, 0.5))), iIiil1Il[llilII1I] = IIlil1l1(iIililII.pow(iIlii11I, 1 / 3)), llilII1I++), iIlii11I++;
+        for (var iIlii11I = 2, llilII1I = 0; llilII1I < 64;) Il11Ii(iIlii11I) && (llilII1I < 8 && (liIIllIi[llilII1I] = IIlil1l1(iIililII.pow(iIlii11I, 0.5))), iIiil1Il[llilII1I] = IIlil1l1(iIililII.pow(iIlii11I, 0.3333333333333333)), llilII1I++), iIlii11I++;
       }();
       var l1i1IiI = [],
         IIIIIli1 = IlilI1l.SHA256 = i1lIIIi1.extend({
