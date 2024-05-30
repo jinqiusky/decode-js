@@ -1,7 +1,7 @@
 {
   "name": "decode-js",
   "scripts": {
-    "decode": "node src/main.js",
+    "decode": "node src/mainco.js",
     "deob": "node src/main.js -t obfuscator",
     "deso": "node src/main.js -t sojson",
     "desov7": "node src/mainv7.js -t sojsonv7",
