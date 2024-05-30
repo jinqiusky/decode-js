@@ -1,4 +1,3 @@
-
 let I1Il11iI = "";
 if (!rebateCodes) rebateCodes = "https://u.jd.com/kigiNLk";
 if (!I1Il11iI) I1Il11iI = "";
@@ -25,7 +24,7 @@ $.getH5st_WQ_Arr = {};
 $.runArr = {};
 let liIIIlIi = {};
 const ll1l1Il1 = "2024/06/19 00:00:00+08:00";
-let I1llIiIl = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000;
+let I1llIiIl = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 28800 * 1000;
 $.UVCookieArr = {};
 lr = {};
 $.UVCookie = "";
@@ -303,7 +302,7 @@ function iiI1il(I1liiiii = "", IlI111Ii = 1) {
     $.UVCookie = IIllIi.getUVCookie("", "", $.url2, $.UVCookie);
     $.UVCookieArr[$.UserName] = $.UVCookie + "";
     let lIIillIi = "",
-      IliII1i1 = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000;
+      IliII1i1 = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 28800 * 1000;
     const iilI1II = {
         "platform": IIll1iI,
         "unionActId": "31177",
@@ -388,7 +387,7 @@ function iiI1il(I1liiiii = "", IlI111Ii = 1) {
               II1iIIII && (resMsg += II1iIIII + "\n", console.log(II1iIIII));
             }
             if (IlI111Ii == 1 && typeof I1lIllll.data !== "undefined" && typeof I1lIllll.data.groupData !== "undefined" && typeof I1lIllll.data.groupData.groupInfo !== "undefined") {
-              var Iill1lIi = $.time("d", new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000);
+              var Iill1lIi = $.time("d", new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 28800 * 1000);
               for (let l1lI1lI1 of I1lIllll.data.groupData.groupInfo || []) {
                 if (l1lI1lI1.status == 2) console.log("\u6253\u5361\u6EE1\u53EF\u4EE5\u9886\u53D6" + l1lI1lI1.hbPrize + "\u5143\u7EA2\u5305\uD83E\uDDE7"), await $.wait(parseInt(Math.random() * 2000 + 2000, 10)), await iiI1il("", 3);else taskFlag + "" === "true" && l1lI1lI1.status == 1 && Iill1lIi == $.time("d", l1lI1lI1.dayTaskStartTime) && !$.taskPinArr[$.UserName] && ($.taskPinArr[$.UserName] = {
                   "actId": $.actId,
@@ -415,7 +414,7 @@ function IIiiI1l(Ililil1i = "") {
   return new Promise(illIiiI => {
     $.UVCookie = IIllIi.getUVCookie("", "", $.url2, $.UVCookie);
     $.UVCookieArr[$.UserName] = $.UVCookie + "";
-    let Il1lIll = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000;
+    let Il1lIll = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 28800 * 1000;
     var III1Illi = {
       "actId": $.actId,
       "unionActId": "31177",
@@ -483,7 +482,7 @@ function IIiiI1l(Ililil1i = "") {
             }
             lI1IIi.msg.indexOf("\u6D3B\u52A8\u5DF2\u7ED3\u675F") > -1 && (lii11ll1 = false);
             if (typeof lI1IIi.data !== "undefined" && typeof lI1IIi.data.groupData !== "undefined" && typeof lI1IIi.data.groupData.groupInfo !== "undefined") {
-              var lI1lIi = $.time("d", new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000);
+              var lI1lIi = $.time("d", new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 28800 * 1000);
               for (let I11I1III of lI1IIi.data.groupData.groupInfo || []) {
                 if (I11I1III.status == 2) console.log("\u6253\u5361\u6EE1\u53EF\u4EE5\u9886\u53D6" + I11I1III.hbPrize + "\u5143\u7EA2\u5305\uD83E\uDDE7"), await $.wait(parseInt(Math.random() * 2000 + 2000, 10)), await iiI1il("", 3);else taskFlag + "" === "true" && I11I1III.status == 1 && lI1lIi == $.time("d", I11I1III.dayTaskStartTime) && !$.taskPinArr[$.UserName] && ($.taskPinArr[$.UserName] = {
                   "actId": $.actId,
@@ -512,7 +511,7 @@ function IliIlIII() {
   }
   return new Promise(async iIIIIIli => {
     let Iliil1I = "",
-      l11l1lII = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000;
+      l11l1lII = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 28800 * 1000;
     const i1IIIlIi = {
         "unionActId": "31177",
         "actId": $.actId,
@@ -661,7 +660,7 @@ function IIl1llI(iiIl1iIl = 1) {
       "prstate": 0
     };
     let I1IiIlII = "",
-      II11ii1 = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000;
+      II11ii1 = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 28800 * 1000;
     const iIll11iI = {
       "appid": "u_hongbao",
       "body": JSON.stringify(II1i1ili),
@@ -786,7 +785,7 @@ function Il1iiill(lI1lIl1I) {
 function iIlIiiiI(llIlill, lIIli1II) {
   return new Promise(async II1lI1l => {
     let ll1Ii11i = "",
-      ll1lIl = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000;
+      ll1lIl = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 28800 * 1000;
     const iIllilli = {
         "unionActId": "31177",
         "actId": $.taskPinArr[$.UserName].actId,
@@ -839,7 +838,7 @@ function iIlIiiiI(llIlill, lIIli1II) {
 function ilIiIliI(ll1III1i = "", i1illI1 = 8, Iil1liII = "") {
   return new Promise(async lI11I11i => {
     let Ili1l1Ii = "",
-      I1iI111I = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000;
+      I1iI111I = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 28800 * 1000;
     var iIiIl1II = {
       "platform": $.taskPinArr[$.UserName].platform,
       "unionActId": "31177",
@@ -925,7 +924,7 @@ function llI11Il(ll1lli1l, IIl111li) {
       "itemId": "1"
     };
     let l111liil = "",
-      li1iIlIi = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000;
+      li1iIlIi = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 28800 * 1000;
     const lIiiii1i = {
       "appid": "u_hongbao",
       "body": JSON.stringify(ilIIl1l),
@@ -972,7 +971,7 @@ function i1Iil1Ii(llI1i1lI, l1lII, liI1lI1l) {
       "jumpType": 1
     };
     let IlIiii1i = "",
-      Ill1li1I = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000;
+      Ill1li1I = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 28800 * 1000;
     const IiI11iI1 = {
       "appid": "u_hongbao",
       "body": JSON.stringify(lii1il1),
@@ -1011,7 +1010,7 @@ function i1Iil1Ii(llI1i1lI, l1lII, liI1lI1l) {
 function il1iIiI1(iilii1I, lIli1ili, i11liIli) {
   return new Promise(l1Iii1ll => {
     var I11liII = "{\"dataSource\":\"babelInteractive\",\"method\":\"customDoInteractiveAssignmentForBabel\",\"reqParams\":\"{\\\"itemId\\\":\\\"1\\\",\\\"encryptProjectId\\\":\\\"" + iilii1I + "\\\",\\\"encryptAssignmentId\\\":\\\"" + lIli1ili + "\\\"}\",\"sdkVersion\":\"1.0.0\",\"clientLanguage\":\"zh\"}";
-    let I1lIi1II = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 480 * 60 * 1000,
+    let I1lIi1II = new Date().getTime() + new Date().getTimezoneOffset() * 60 * 1000 + 28800 * 1000,
       i1liilIi = "https://api.m.jd.com/?client=wh5&clientVersion=1.0.0&functionId=qryViewkitCallbackResult&body=" + I11liII + "&_timestamp=" + I1lIi1II;
     origin = i11liIli.match(/(https:\/\/\S{3,7}[\.m]{0,}\.jd\.com)/) && i11liIli.match(/(https:\/\/\S{3,7}[\.m]{0,}\.jd\.com)/)[1] || "";
     let I1ili1I = {
