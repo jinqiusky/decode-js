@@ -1,0 +1,36 @@
+name: Automated Decode JSob
+
+on:
+    push:
+     branches:
+      - main # 或您想要监听的分支
+     paths:
+      - 'jsco/**' # 监听 js 文件夹下的所有文件变动
+    workflow_dispatch: # 允许手动触发工作流
+
+jobs:
+  run-decode:
+    runs-on: ubuntu-latest
+    if: ${{ github.actor != 'github-actions[bot]' }} # 如果提交者不是 github-actions[bot]，则执行
+    steps:
+    - uses: actions/checkout@v4 # 更新至最新的v4版本
+      with:
+        fetch-depth: 0 # 克隆整个仓库历史
+        token: ${{ secrets.GITHUB_TOKEN }} # 使用 GitHub 的内置密钥进行授权
+    - name: Set up Node.js
+      uses: actions/setup-node@v4 # 更新至最新的v4版本
+      with:
+        node-version: '20.x' # 更新至Node.js 20
+    - name: Install dependencies
+      run: npm install # 安装项目依赖
+    - name: Run decode script
+      run: npm run decode # 执行package.json中的deob脚本
+    - name: Commit and push changes
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git add .
+        git commit -m "Auto-update decrypted scripts" -a || echo "No changes to commit"
+        git push
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 将 GitHub 密钥传递给环境变量
