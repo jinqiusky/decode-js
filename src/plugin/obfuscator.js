@@ -9,11 +9,18 @@ const traverse = require('@babel/traverse').default
 const t = require('@babel/types')
 const ivm = require('isolated-vm')
 const PluginEval = require('./eval.js')
+const calculateConstantExp = require('../visitor/calculate-constant-exp')
 
 const isolate = new ivm.Isolate()
 const globalContext = isolate.createContextSync()
 function virtualGlobalEval(jsStr) {
   return globalContext.evalSync(String(jsStr))
+}
+
+const optGenMin = {
+  comments: false,
+  minified: true,
+  jsescOption: { minimal: true },
 }
 
 /**
@@ -119,7 +126,7 @@ function stringArrayV2(ast) {
     // The string array can be found by its binding
     const bind = path.scope.getBinding(obj.stringArrayName)
     const def = t.variableDeclaration('var', [bind.path.node])
-    obj.stringArrayCodes.push(generator(def, { minified: true }).code)
+    obj.stringArrayCodes.push(generator(def, optGenMin).code)
     // The calls can be found by its references
     for (let ref of bind.referencePaths) {
       if (ref?.listKey === 'arguments') {
@@ -134,19 +141,19 @@ function stringArrayV2(ast) {
       if (up1.node.id) {
         // 2.12.0 <= v < 2.15.4
         // The `stringArrayCallsWrapperName` is included in the definition
-        obj.stringArrayCalls.push(up1.node.id.name)
-        obj.stringArrayCodes.push(generator(up1.node, { minified: true }).code)
-        up1.remove()
+        obj.stringArrayCodes.push(generator(up1.node, optGenMin).code)
+        up1.node.body = t.blockStatement([])
+        obj.stringArrayCalls.push({ name: up1.node.id.name, path: up1 })
         continue
       }
       if (up1.key === 'init') {
         // v < 2.12.0
         // The `stringArrayCallsWrapperName` is defined by VariableDeclarator
         up1 = up1.parentPath
-        obj.stringArrayCalls.push(up1.node.id.name)
-        up1 = up1.parentPath
-        obj.stringArrayCodes.push(generator(up1.node, { minified: true }).code)
-        up1.remove()
+        const node = t.variableDeclaration('var', [up1.node])
+        obj.stringArrayCodes.push(generator(node, optGenMin).code)
+        up1.node.init = null
+        obj.stringArrayCalls.push({ name: up1.node.id.name, path: up1 })
         continue
       }
       // 2.15.4 <= v < 2.19.0
@@ -158,15 +165,15 @@ function stringArrayV2(ast) {
         console.warn('Unexpected reference!')
         continue
       }
-      obj.stringArrayCalls.push(wrapper)
-      obj.stringArrayCodes.push(generator(up2.node, { minified: true }).code)
-      up2.remove()
+      obj.stringArrayCodes.push(generator(up2.node, optGenMin).code)
+      up2.node.body = t.blockStatement([])
+      obj.stringArrayCalls.push({ name: wrapper, path: up2 })
     }
     // Remove the string array
     bind.path.remove()
     // Add the rotate function
     const node = t.expressionStatement(path.node)
-    obj.stringArrayCodes.push(generator(node, { minified: true }).code)
+    obj.stringArrayCodes.push(generator(node, optGenMin).code)
     path.stop()
     if (path.parentPath.isUnaryExpression()) {
       path.parentPath.remove()
@@ -232,7 +239,7 @@ function stringArrayV3(ast) {
       }
       const nodes = [...body]
       nodes.shift()
-      const code = generator(t.BlockStatement(nodes)).code
+      const code = generator(t.BlockStatement(nodes), optGenMin).code
       const fp = `${name_func}=function(){return${string_var}}${name_func}()`
       if (!checkPattern(code, fp)) {
         return
@@ -274,8 +281,9 @@ function stringArrayV3(ast) {
         if (name_func == rm_path.node.id.name) {
           return
         }
-        nodes.push([rm_path.node, 'func3'])
-        rm_path.remove()
+        const code = generator(rm_path.node, optGenMin).code
+        rm_path.node.body = t.blockStatement([])
+        nodes.push([code, 'func3', rm_path])
       } else {
         console.error('Unexpected reference')
       }
@@ -285,16 +293,18 @@ function stringArrayV3(ast) {
       return
     }
     ob_string_func_name = name_func
-    ob_func_str.push(generator(path.node, { minified: true }).code)
+    ob_func_str.push(generator(path.node, optGenMin).code)
     nodes.map(function (item) {
-      let node = item[0]
       if (item[1] == 'func3') {
-        ob_dec_name.push(node.id.name)
+        ob_func_str.push(item[0])
+        ob_dec_name.push({ name: item[2].node.id.name, path: item[2] })
+        return
       }
+      let node = item[0]
       if (t.isCallExpression(node)) {
         node = t.expressionStatement(node)
       }
-      ob_func_str.push(generator(node, { minified: true }).code)
+      ob_func_str.push(generator(node, optGenMin).code)
     })
     path.stop()
     path.remove()
@@ -319,7 +329,7 @@ function decodeGlobal(ast) {
   }
   console.log(`String List Name: ${obj.stringArrayName}`)
   let ob_func_str = obj.stringArrayCodes
-  let ob_dec_name = obj.stringArrayCalls
+  let ob_dec_call = obj.stringArrayCalls
   try {
     virtualGlobalEval(ob_func_str.join(';'))
   } catch (e) {
@@ -328,11 +338,11 @@ function decodeGlobal(ast) {
       let lost = e.message.split(' ')[0]
       traverse(ast, {
         Program(path) {
-          ob_dec_name.push(lost)
           let loc = path.scope.getBinding(lost).path
           let obj = t.variableDeclaration(loc.parent.kind, [loc.node])
-          ob_func_str.unshift(generator(obj, { minified: true }).code)
-          loc.remove()
+          ob_func_str.unshift(generator(obj, optGenMin).code)
+          loc.node.init = null
+          ob_dec_call.push({ name: lost, path: loc })
           path.stop()
         },
       })
@@ -340,113 +350,111 @@ function decodeGlobal(ast) {
     }
   }
 
-  // 循环删除混淆函数
-  let call_dict = {}
-  let exist_names = ob_dec_name
-  let collect_codes = []
-  let collect_names = []
-  function do_parse_value(path) {
-    let name = path.node.callee.name
-    if (path.node.callee && exist_names.indexOf(name) != -1) {
-      let old_call = path + ''
-      try {
-        // 运行成功则说明函数为直接调用并返回字符串
-        let new_str = virtualGlobalEval(old_call)
-        console.log(`map: ${old_call} -> ${new_str}`)
-        call_dict[old_call] = new_str
-      } catch (e) {
-        // 运行失败则说明函数为其它混淆函数的子函数
-        console.log(`sub: ${old_call}`)
-      }
+  // 递归删除混淆函数
+  function getChild(father) {
+    if (father.key !== 'argument' || !father.parentPath.isReturnStatement()) {
+      console.error(`Unexpected chained call: ${father}`)
+      return null
     }
-  }
-  function do_collect_remove(path) {
-    // 可以删除所有已收集混淆函数的定义
-    // 因为根函数已被删除 即使保留也无法运行
-    let node = path.node?.left
-    if (!node) {
-      node = path.node?.id
-    }
-    let name = node?.name
-    if (exist_names.indexOf(name) != -1) {
-      // console.log(`del: ${name}`)
-      if (path.parentPath.isCallExpression()) {
-        path.replaceWith(node)
-      } else {
-        path.remove()
-      }
-    }
-  }
-  function do_collect_func(path) {
-    // function A (...) { return function B (...) }
-    if (
-      path.node.body.body.length == 1 &&
-      path.node.body.body[0].type == 'ReturnStatement' &&
-      path.node.body.body[0].argument?.type == 'CallExpression' &&
-      path.node.body.body[0].argument.callee.type == 'Identifier' &&
-      // path.node.params.length == 5 &&
-      path.node.id
-    ) {
-      let call_func = path.node.body.body[0].argument.callee.name
-      if (exist_names.indexOf(call_func) == -1) {
-        return
-      }
-      let name = path.node.id.name
-      let t = generator(path.node, { minified: true }).code
-      if (collect_names.indexOf(name) == -1) {
-        collect_codes.push(t)
-        collect_names.push(name)
-      } else {
-        console.log(`err: redef ${name}`)
-      }
-    }
-  }
-  function do_collect_var(path) {
-    // var A = B
-    let left, right
-    if (t.isVariableDeclarator(path.node)) {
-      left = path.node.id
-      right = path.node.init
+    const func = father.getFunctionParent()
+    let name = func.node.id?.name
+    let root
+    let code
+    if (name) {
+      // FunctionDeclaration
+      // function A (...) { return function B (...) }
+      root = func
+      code = generator(root.node, optGenMin).code
     } else {
-      left = path.node.left
-      right = path.node.right
+      // FunctionExpression
+      // var A = function (...) { return function B (...) }
+      root = func.parentPath
+      code = generator(t.variableDeclaration('var', [root])).code
+      name = root.node.id.name
     }
-    if (right?.type == 'Identifier' && exist_names.indexOf(right.name) != -1) {
-      let name = left.name
-      let t = 'var ' + generator(path.node, { minified: true }).code
-      if (collect_names.indexOf(name) == -1) {
-        collect_codes.push(t)
-        collect_names.push(name)
-      } else {
-        console.warning(`redef ${name}`)
+    return {
+      name: name,
+      path: root,
+      code: code,
+    }
+  }
+  function dfs(stk, item) {
+    stk.push(item)
+    const cur_val = item.name
+    console.log(`Enter sub ${stk.length}:${cur_val}`)
+    let pfx = ''
+    for (let parent of stk) {
+      pfx += parent.code + ';'
+    }
+    virtualGlobalEval(pfx)
+    let scope = item.path.scope
+    if (item.path.isFunctionDeclaration()) {
+      scope = item.path.parentPath.scope
+    }
+    const binding = scope.getBinding(cur_val)
+    binding.scope.crawl()
+    const refs = binding.scope.bindings[cur_val].referencePaths
+    const refs_next = []
+    // 有4种链式调用情况：
+    // - VariableDeclarator和FunctionDeclaration为原版
+    // - AssignmentExpression 出现于 #50
+    // - FunctionExpression 出现于 #94
+    for (let ref of refs) {
+      const parent = ref.parentPath
+      if (ref.key === 'callee') {
+        // CallExpression
+        let old_call = parent + ''
+        try {
+          // 运行成功则说明函数为直接调用并返回字符串
+          let new_str = virtualGlobalEval(old_call)
+          console.log(`map: ${old_call} -> ${new_str}`)
+          parent.replaceWith(t.StringLiteral(new_str))
+        } catch (e) {
+          // 运行失败则说明函数为其它混淆函数的子函数
+          console.log(`sub: ${old_call}`)
+          const ret = getChild(parent)
+          if (ret) {
+            refs_next.push(ret)
+          }
+        }
+      } else if (ref.key === 'init') {
+        // VariableDeclarator
+        refs_next.push({
+          name: ref.parent.id.name,
+          path: ref.parentPath,
+          code: 'var ' + ref.parentPath,
+        })
+      } else if (ref.key === 'right') {
+        // AssignmentExpression
+        // 这种情况尚不完善 可能会产生额外替换
+        refs_next.push({
+          name: ref.parent.left.name,
+          path: ref.parentPath,
+          code: 'var ' + ref.parentPath,
+        })
       }
     }
-  }
-  while (exist_names.length) {
-    // 查找已收集混淆函数的调用并建立替换关系
-    traverse(ast, { CallExpression: do_parse_value })
-    // 删除被使用过的定义
-    traverse(ast, { FunctionDeclaration: do_collect_remove })
-    traverse(ast, { VariableDeclarator: do_collect_remove })
-    traverse(ast, { AssignmentExpression: do_collect_remove })
-    // 收集所有调用已收集混淆函数的混淆函数
-    collect_codes = []
-    collect_names = []
-    traverse(ast, { FunctionDeclaration: do_collect_func })
-    traverse(ast, { VariableDeclarator: do_collect_var })
-    traverse(ast, { AssignmentExpression: do_collect_var })
-    exist_names = collect_names
-    // 执行找到的函数
-    virtualGlobalEval(collect_codes.join(';'))
-  }
-  // 替换混淆函数
-  function do_replace(path) {
-    let old_call = path + ''
-    if (Object.prototype.hasOwnProperty.call(call_dict, old_call)) {
-      path.replaceWith(t.StringLiteral(call_dict[old_call]))
+    for (let ref of refs_next) {
+      dfs(stk, ref)
     }
+    binding.scope.crawl()
+    console.log(`Exit sub ${stk.length}:${cur_val}`)
+    stk.pop()
+    if (!item.path.parentPath.isCallExpression()) {
+      item.path.remove()
+      binding.scope.crawl()
+      return
+    }
+    // 只会出现在AssignmentExpression情况下 需要再次运行
+    item.path.replaceWith(t.identifier(cur_val))
+    item.path = binding.path
+    binding.scope.crawl()
+    dfs(stk, item)
   }
-  traverse(ast, { CallExpression: do_replace })
+  for (let item of ob_dec_call) {
+    item.code = ''
+    dfs([], item)
+  }
   return true
 }
 
@@ -489,418 +497,18 @@ function stringArrayLite(ast) {
   traverse(ast, visitor)
 }
 
-function mergeObject(path) {
-  // var _0xb28de8 = {};
-  // _0xb28de8["abcd"] = function(_0x22293f, _0x5a165e) {
-  //     return _0x22293f == _0x5a165e;
-  // };
-  // _0xb28de8.dbca = function(_0xfbac1e, _0x23462f, _0x556555) {
-  //     return _0xfbac1e(_0x23462f, _0x556555);
-  // };
-  // _0xb28de8.aaa = function(_0x57e640) {
-  //     return _0x57e640();
-  // };
-  // _0xb28de8["bbb"] = "eee";
-  // var _0x15e145 = _0xb28de8;
-  //  |
-  //  |
-  //  |
-  //  v
-  // var _0xb28de8 = {
-  //   "abcd": function (_0x22293f, _0x5a165e) {
-  //     return _0x22293f == _0x5a165e;
-  //   },
-  //   "dbca": function (_0xfbac1e, _0x23462f, _0x556555) {
-  //     return _0xfbac1e(_0x23462f, _0x556555);
-  //   },
-  //   "aaa": function (_0x57e640) {
-  //     return _0x57e640();
-  //   },
-  //   "bbb": "eee"
-  // };
-  //
-  // Note:
-  // Constant objects in the original code can be splitted
-  // AssignmentExpression can be moved to ReturnStatement
-  const { id, init } = path.node
-  if (!t.isObjectExpression(init)) {
-    // 判断是否是定义对象
-    return
-  }
-  let name = id.name
-  let scope = path.scope
-  let binding = scope.getBinding(name)
-  if (!binding || !binding.constant) {
-    // 确认该对象没有被多次定义
-    return
-  }
-  // 添加已有的key
-  let keys = {}
-  let properties = init.properties
-  for (let prop of properties) {
-    let key = null
-    if (t.isStringLiteral(prop.key)) {
-      key = prop.key.value
-    }
-    if (t.isIdentifier(prop.key)) {
-      key = prop.key.name
-    }
-    if (key) {
-      keys[key] = true
-    }
-  }
-  // 遍历作用域检测是否含有局部混淆特征并合并成员
-  let merges = []
-  const container = path.parentPath.parentPath
-  let idx = path.parentPath.key
-  let cur = 0
-  let valid = true
-  // Check references in sequence
-  while (cur < binding.references) {
-    const ref = binding.referencePaths[cur]
-    if (ref.key !== 'object' || !ref.parentPath.isMemberExpression()) {
-      break
-    }
-    const me = ref.parentPath
-    if (me.key !== 'left' || !me.parentPath.isAssignmentExpression()) {
-      break
-    }
-    const ae = me.parentPath
-    let bk = ae
-    while (bk.parentPath.isExpression()) {
-      bk = bk.parentPath
-    }
-    if (bk.parentPath.isExpressionStatement()) {
-      bk = bk.parentPath
-    }
-    if (bk.parentPath !== container || bk.key - idx > 1) {
-      break
-    }
-    idx = bk.key
-    const property = me.node.property
-    let key = null
-    if (t.isStringLiteral(property)) {
-      key = property.value
-    }
-    if (t.isIdentifier(property)) {
-      key = property.name
-    }
-    if (!key) {
-      valid = false
-      break
-    }
-    // 不允许出现重定义
-    if (Object.prototype.hasOwnProperty.call(keys, key)) {
-      valid = false
-      break
-    }
-    // 添加到列表
-    properties.push(t.ObjectProperty(t.valueToNode(key), ae.node.right))
-    keys[key] = true
-    merges.push(ae)
-    ++cur
-  }
-  if (!merges.length || !valid) {
-    return
-  }
-  // Remove code
-  console.log(`尝试性合并: ${name}`)
-  for (let ref of merges) {
-    const left = ref.node.left
-    if (
-      ref.parentPath.isVariableDeclarator() ||
-      ref.parentPath.isAssignmentExpression()
-    ) {
-      ref.replaceWith(left)
-    } else {
-      if (ref.parentPath.isSequenceExpression() && ref.container.length === 1) {
-        ref = ref.parentPath
-      }
-      ref.remove()
-    }
-  }
-  while (cur < binding.references) {
-    const ref = binding.referencePaths[cur++]
-    const up1 = ref.parentPath
-    if (!up1.isVariableDeclarator()) {
-      continue
-    }
-    let child = up1.node.id.name
-    if (!up1.scope.bindings[child]?.constant) {
-      continue
-    }
-    up1.scope.rename(child, name, up1.scope.block)
-    up1.remove()
-  }
-  scope.crawl()
-}
-
-function unpackCall(path) {
-  // var _0xb28de8 = {
-  //     "abcd": function(_0x22293f, _0x5a165e) {
-  //         return _0x22293f == _0x5a165e;
-  //     },
-  //     "dbca": function(_0xfbac1e, _0x23462f, _0x556555) {
-  //         return _0xfbac1e(_0x23462f, _0x556555);
-  //     },
-  //     "aaa": function(_0x57e640) {
-  //         return _0x57e640();
-  //     },
-  //     "bbb": "eee",
-  //     "ccc": A[x][y][...]
-  // };
-  // var aa = _0xb28de8["abcd"](123, 456);
-  // var bb = _0xb28de8["dbca"](bcd, 11, 22);
-  // var cc = _0xb28de8["aaa"](dcb);
-  // var dd = _0xb28de8["bbb"];
-  // var ee = _0xb28de8["ccc"];
-  //   |
-  //   |
-  //   |
-  //   v
-  // var aa = 123 == 456;
-  // var bb = bcd(11, 22);
-  // var cc = dcb();
-  // var dd = "eee";
-  // var ee = A[x][y][...];
-  let node = path.node
-  // 变量必须定义为Object类型才可能是代码块加密内容
-  if (!t.isObjectExpression(node.init)) {
-    return
-  }
-  let objPropertiesList = node.init.properties
-  if (objPropertiesList.length == 0) {
-    return
-  }
-  // 遍历Object 判断每个元素是否符合格式
-  let objName = node.id.name
-  let objKeys = {}
-  // 有时会有重复的定义
-  let replCount = 0
-  objPropertiesList.map(function (prop) {
-    if (!t.isObjectProperty(prop)) {
-      return
-    }
-    let key
-    if (t.isIdentifier(prop.key)) {
-      key = prop.key.name
-    } else {
-      key = prop.key.value
-    }
-    if (t.isFunctionExpression(prop.value)) {
-      // 符合要求的函数必须有且仅有一条return语句
-      if (prop.value.body.body.length !== 1) {
-        return
-      }
-      let retStmt = prop.value.body.body[0]
-      if (!t.isReturnStatement(retStmt)) {
-        return
-      }
-      // 检测是否是3种格式之一
-      let repfunc = null
-      if (t.isBinaryExpression(retStmt.argument)) {
-        // 二元运算类型
-        repfunc = function (_path, args) {
-          _path.replaceWith(
-            t.binaryExpression(retStmt.argument.operator, args[0], args[1])
-          )
-        }
-      } else if (t.isLogicalExpression(retStmt.argument)) {
-        // 逻辑判断类型
-        repfunc = function (_path, args) {
-          _path.replaceWith(
-            t.logicalExpression(retStmt.argument.operator, args[0], args[1])
-          )
-        }
-      } else if (t.isCallExpression(retStmt.argument)) {
-        // 函数调用类型 调用的函数必须是传入的第一个参数
-        if (!t.isIdentifier(retStmt.argument.callee)) {
-          return
-        }
-        if (retStmt.argument.callee.name !== prop.value.params[0]?.name) {
-          return
-        }
-        repfunc = function (_path, args) {
-          _path.replaceWith(t.callExpression(args[0], args.slice(1)))
-        }
-      }
-      if (repfunc) {
-        objKeys[key] = repfunc
-        ++replCount
-      }
-    } else if (t.isStringLiteral(prop.value)) {
-      let retStmt = prop.value.value
-      objKeys[key] = function (_path) {
-        _path.replaceWith(t.stringLiteral(retStmt))
-      }
-      ++replCount
-    } else if (t.isMemberExpression(prop.value)) {
-      let retStmt = prop.value
-      objKeys[key] = function (_path) {
-        _path.replaceWith(retStmt)
-      }
-      ++replCount
-    }
-  })
-  // 如果Object内的元素不全符合要求 很有可能是普通的字符串类型 不需要替换
-  if (!replCount) {
-    return
-  }
-  if (objPropertiesList.length !== replCount) {
-    console.log(
-      `不完整替换: ${objName} ${replCount}/${objPropertiesList.length}`
-    )
-    return
-  }
-  // 遍历作用域进行替换 分为函数调用和字符串调用
-  console.log(`处理代码块: ${objName}`)
-  let objUsed = {}
-  function getReplaceFunc(_node) {
-    // 这里开始所有的调用应该都在列表中
-    let key = null
-    if (t.isStringLiteral(_node.property)) {
-      key = _node.property.value
-    } else if (t.isIdentifier(_node.property)) {
-      key = _node.property.name
-    } else {
-      // Maybe the code was obfuscated more than once
-      const code = generator(_node.property, { minified: true }).code
-      console.log(`意外的调用: ${objName}[${code}]`)
-      return null
-    }
-    if (!Object.prototype.hasOwnProperty.call(objKeys, key)) {
-      // 这里应该是在死代码中 因为key不存在
-      return null
-    }
-    objUsed[key] = true
-    return objKeys[key]
-  }
-  let bind = path.scope.getBinding(objName)?.referencePaths
-  let usedCount = 0
-  // Replace reversely to handle nested cases correctly
-  for (let i = bind.length - 1; i >= 0; --i) {
-    let ref = bind[i]
-    let up1 = ref.parentPath
-    if (up1.isMemberExpression() && ref.key === 'object') {
-      if (up1.key === 'left' && t.isAssignmentExpression(up1.parent)) {
-        continue
-      }
-      let func = getReplaceFunc(up1.node)
-      if (!func) {
-        continue
-      }
-      ++usedCount
-      let up2 = up1.parentPath
-      if (up1.key === 'callee') {
-        func(up2, up2.node.arguments)
-      } else {
-        func(up1)
-      }
-    }
-  }
-  // 如果没有全部使用 就先不删除
-  if (usedCount !== bind.length) {
-    console.log(`不完整使用: ${objName} ${usedCount}/${bind.length}`)
-  } else {
-    path.remove()
-  }
-}
-
-function calcBinary(path) {
-  let tps = ['StringLiteral', 'BooleanLiteral', 'NumericLiteral']
-  let nod = path.node
-  function judge(e) {
-    return (
-      tps.indexOf(e.type) != -1 ||
-      (e.type == 'UnaryExpression' && tps.indexOf(e.argument.type) != -1)
-    )
-  }
-  function make_rep(e) {
-    if (typeof e == 'number') {
-      return t.NumericLiteral(e)
-    }
-    if (typeof e == 'string') {
-      return t.StringLiteral(e)
-    }
-    if (typeof e == 'boolean') {
-      return t.BooleanLiteral(e)
-    }
-    throw Error('unknown type' + typeof e)
-  }
-  if (judge(nod.left) && judge(nod.right)) {
-    path.replaceWith(make_rep(eval(path + '')))
-  }
-}
-
 function decodeCodeBlock(ast) {
   // 合并字面量
-  traverse(ast, { BinaryExpression: { exit: calcBinary } })
+  traverse(ast, calculateConstantExp)
   // 先合并分离的Object定义
-  traverse(ast, { VariableDeclarator: { exit: mergeObject } })
+  const mergeObject = require('../visitor/merge-object')
+  traverse(ast, mergeObject)
   // 在变量定义完成后判断是否为代码块加密内容
-  traverse(ast, { VariableDeclarator: { exit: unpackCall } })
+  const parseControlFlowStorage = require('../visitor/parse-control-flow-storage')
+  traverse(ast, parseControlFlowStorage)
   // 合并字面量(在解除区域混淆后会出现新的可合并分割)
-  traverse(ast, { BinaryExpression: { exit: calcBinary } })
+  traverse(ast, calculateConstantExp)
   return ast
-}
-
-function purifyBoolean(path) {
-  // 简化 ![] 和 !![]
-  const node0 = path.node
-  if (node0.operator !== '!') {
-    return
-  }
-  const node1 = node0.argument
-  if (t.isArrayExpression(node1) && node1.elements.length === 0) {
-    path.replaceWith(t.booleanLiteral(false))
-    return
-  }
-  if (!t.isUnaryExpression(node1) || node1.operator !== '!') {
-    return
-  }
-  const node2 = node1.argument
-  if (t.isArrayExpression(node2) && node2.elements.length === 0) {
-    path.replaceWith(t.booleanLiteral(true))
-  }
-}
-
-function cleanIFCode(path) {
-  function clear(path, toggle) {
-    // 判定成立
-    if (toggle) {
-      if (path.node.consequent.type == 'BlockStatement') {
-        path.replaceWithMultiple(path.node.consequent.body)
-      } else {
-        path.replaceWith(path.node.consequent)
-      }
-      return
-    }
-    // 判定不成立
-    if (!path.node.alternate) {
-      path.remove()
-      return
-    }
-    if (path.node.alternate.type == 'BlockStatement') {
-      path.replaceWithMultiple(path.node.alternate.body)
-    } else {
-      path.replaceWith(path.node.alternate)
-    }
-  }
-  // 判断判定是否恒定
-  const test = path.node.test
-  const types = ['StringLiteral', 'NumericLiteral', 'BooleanLiteral']
-  if (test.type === 'BinaryExpression') {
-    if (
-      types.indexOf(test.left.type) !== -1 &&
-      types.indexOf(test.right.type) !== -1
-    ) {
-      const left = JSON.stringify(test.left.value)
-      const right = JSON.stringify(test.right.value)
-      clear(path, eval(left + test.operator + right))
-    }
-  } else if (types.indexOf(test.type) !== -1) {
-    clear(path, eval(JSON.stringify(test.value)))
-  }
 }
 
 function cleanSwitchCode(path) {
@@ -938,6 +546,9 @@ function cleanSwitchCode(path) {
   let arr = []
   let rm = []
   path.getAllPrevSiblings().forEach((pre_path) => {
+    if (!pre_path.isVariableDeclaration()) {
+      return
+    }
     for (let i = 0; i < pre_path.node.declarations.length; ++i) {
       const declaration = pre_path.get(`declarations.${i}`)
       let { id, init } = declaration.node
@@ -999,9 +610,9 @@ function cleanSwitchCode(path) {
 }
 
 function cleanDeadCode(ast) {
-  traverse(ast, { UnaryExpression: purifyBoolean })
-  traverse(ast, { IfStatement: cleanIFCode })
-  traverse(ast, { ConditionalExpression: cleanIFCode })
+  traverse(ast, calculateConstantExp)
+  const pruneIfBranch = require('../visitor/prune-if-branch')
+  traverse(ast, pruneIfBranch)
   traverse(ast, { WhileStatement: { exit: cleanSwitchCode } })
   return ast
 }
@@ -1061,29 +672,6 @@ function standardLoop(path) {
   if (!t.isBlockStatement(node.body)) {
     node.body = t.BlockStatement([node.body])
   }
-}
-
-function splitSequence(path) {
-  let { scope, parentPath, node } = path
-  let expressions = node.expressions
-  if (parentPath.isReturnStatement({ argument: node })) {
-    let lastExpression = expressions.pop()
-    for (let expression of expressions) {
-      parentPath.insertBefore(t.ExpressionStatement(expression))
-    }
-
-    path.replaceInline(lastExpression)
-  } else if (parentPath.isExpressionStatement({ expression: node })) {
-    let body = []
-    expressions.forEach((express) => {
-      body.push(t.ExpressionStatement(express))
-    })
-    path.replaceInline(body)
-  } else {
-    return
-  }
-
-  scope.crawl()
 }
 
 function purifyCode(ast) {
@@ -1148,7 +736,8 @@ function purifyCode(ast) {
   })
 
   // 拆分语句
-  traverse(ast, { SequenceExpression: splitSequence })
+  const splitSequence = require('../visitor/split-sequence')
+  traverse(ast, splitSequence)
   return ast
 }
 
@@ -1189,6 +778,8 @@ const deleteSelfDefendingCode = {
       `return${selfName}.toString().search().toString().constructor(${selfName}).search()`,
       // @7135b09
       `const=function(){const=.constructor()return.test(${selfName})}return()`,
+      // #94
+      `var=function(){var=.constructor()return.test(${selfName})}return()`,
     ]
     let valid = false
     for (let pattern of patterns) {
@@ -1269,15 +860,21 @@ const deleteDebugProtectionCode = {
         rm.remove()
         continue
       }
-      // DebugProtectionFunctionCall
-      const up2 = up1.getFunctionParent().parentPath
-      const scope2 = up2.scope.getBinding(callName).scope
-      up2.remove()
-      scope1.crawl()
-      scope2.crawl()
-      const bind = scope2.bindings[callName]
-      bind.path.remove()
-      console.info(`Remove CallFunc: ${callName}`)
+      const up2 = up1.getFunctionParent()?.parentPath
+      if (up2) {
+        // DebugProtectionFunctionCall
+        const scope2 = up2.scope.getBinding(callName).scope
+        up2.remove()
+        scope1.crawl()
+        scope2.crawl()
+        const bind = scope2.bindings[callName]
+        bind.path.remove()
+        console.info(`Remove CallFunc: ${callName}`)
+        continue
+      }
+      // exceptions #95
+      const rm = ref.parentPath
+      rm.remove()
     }
     path.remove()
     console.info(`Remove DebugProtectionFunc: ${debugName}`)
@@ -1353,6 +950,12 @@ module.exports = function (code) {
   // IllegalReturn
   const deleteIllegalReturn = require('../visitor/delete-illegal-return')
   traverse(ast, deleteIllegalReturn)
+  // Lint before split statements
+  const lintIfStatement = require('../visitor/lint-if-statement')
+  traverse(ast, lintIfStatement)
+  // Split declarations to avoid bugs
+  const splitVarDeclaration = require('../visitor/split-variable-declaration')
+  traverse(ast, splitVarDeclaration)
   // 清理二进制显示内容
   traverse(ast, {
     StringLiteral: ({ node }) => {
@@ -1378,22 +981,13 @@ module.exports = function (code) {
   console.log('清理死代码...')
   ast = cleanDeadCode(ast)
   // 刷新代码
-  ast = parse(
-    generator(ast, {
-      comments: false,
-      jsescOption: { minimal: true },
-    }).code,
-    { errorRecovery: true }
-  )
+  ast = parse(generator(ast, optGenMin).code, { errorRecovery: true })
   console.log('提高代码可读性...')
   ast = purifyCode(ast)
   console.log('解除环境限制...')
   ast = unlockEnv(ast)
   console.log('净化完成')
-  code = generator(ast, {
-    comments: false,
-    jsescOption: { minimal: true },
-  }).code
+  code = generator(ast, { jsescOption: { minimal: true } }).code
   if (global_eval) {
     code = PluginEval.pack(code)
   }

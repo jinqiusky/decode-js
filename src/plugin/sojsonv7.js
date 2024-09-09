@@ -7,11 +7,18 @@ const traverse = require('@babel/traverse').default
 const t = require('@babel/types')
 const ivm = require('isolated-vm')
 const PluginEval = require('./eval.js')
+const calculateConstantExp = require('../visitor/calculate-constant-exp')
 
 const isolate = new ivm.Isolate()
 const globalContext = isolate.createContextSync()
 function virtualGlobalEval(jsStr) {
   return globalContext.evalSync(String(jsStr))
+}
+function evalOneTime(str) {
+  const vm = new ivm.Isolate()
+  const ret = vm.createContextSync().evalSync(String(str))
+  vm.dispose()
+  return ret
 }
 
 function decodeGlobal(ast) {
@@ -153,7 +160,15 @@ function decodeGlobal(ast) {
   }
   //  check if contains rotate function and decrypt variable
   let decrypt_val
+  let decrypt_path
   let binds = refs.string_path.scope.getBinding(var_string_table)
+  function parse_main_call(path) {
+    decrypt_path = path
+    const node = path.node
+    const copy = t.functionDeclaration(node.id, node.params, node.body)
+    node.body = t.blockStatement([])
+    return copy
+  }
   // remove path of string table
   if (refs.string_path.isVariableDeclarator()) {
     decrypt_code[1] = t.variableDeclaration('var', [refs.string_path.node])
@@ -194,9 +209,8 @@ function decodeGlobal(ast) {
       while (top.getFunctionParent()) {
         top = top.getFunctionParent()
       }
-      decrypt_code[2] = top.node
+      decrypt_code[2] = parse_main_call(top)
       decrypt_val = top.node.id.name
-      top.remove()
       continue
     }
     if (parent.isCallExpression() && !parent.node.arguments.length) {
@@ -208,9 +222,8 @@ function decodeGlobal(ast) {
       while (top.getFunctionParent()) {
         top = top.getFunctionParent()
       }
-      decrypt_code[2] = top.node
+      decrypt_code[2] = parse_main_call(top)
       decrypt_val = top.node.id.name
-      top.remove()
       continue
     }
     if (parent.isExpressionStatement()) {
@@ -229,6 +242,7 @@ function decodeGlobal(ast) {
     }
     cache.remove()
   }
+  decrypt_path.parentPath.scope.crawl()
   if (!decrypt_val) {
     console.error('Cannot find decrypt variable')
     return
@@ -244,275 +258,66 @@ function decodeGlobal(ast) {
   virtualGlobalEval(code)
   // 遍历内容语句
   ast.program.body = content_code
-  let cur_val = decrypt_val
   function funToStr(path) {
-    let node = path.node
-    if (!t.isIdentifier(node.callee, { name: cur_val })) {
-      return
-    }
     let tmp = path.toString()
     let value = virtualGlobalEval(tmp)
     // console.log(`还原前：${tmp} 还原后：${value}`)
     path.replaceWith(t.valueToNode(value))
   }
   function memToStr(path) {
-    let node = path.node
-    if (!t.isIdentifier(node.object, { name: cur_val })) {
-      return
-    }
     let tmp = path.toString()
     let value = virtualGlobalEval(tmp)
     // console.log(`还原前：${tmp} 还原后：${value}`)
     path.replaceWith(t.valueToNode(value))
   }
-  function dfs(path) {
-    const right = path.node.init
-    if (!t.isIdentifier(right) || right.name !== cur_val) {
-      return
+  function dfs(stk, item) {
+    stk.push(item)
+    const cur_val = item.name
+    console.log(`Enter sub ${stk.length}:${cur_val}`)
+    let pfx = ''
+    for (let parent of stk) {
+      pfx += parent.code + ';'
     }
-    const parent_val = cur_val
-    cur_val = path.node.id.name
-    const code = generator(path.node, { minified: true }).code
-    virtualGlobalEval(code)
-    path.remove()
-    console.log(`Go to sub: ${cur_val}`)
-    path.scope.path.traverse({
-      CallExpression: funToStr,
-      MemberExpression: memToStr,
-    })
-    path.scope.path.traverse({
-      VariableDeclarator: dfs,
-    })
-    cur_val = parent_val
+    virtualGlobalEval(pfx)
+    let scope = item.path.scope
+    if (item.path.isFunctionDeclaration()) {
+      scope = item.path.parentPath.scope
+    }
+    const refs = scope.bindings[cur_val].referencePaths
+    const refs_next = []
+    for (let ref of refs) {
+      const parent = ref.parentPath
+      if (ref.key === 'init') {
+        // VariableDeclarator
+        refs_next.push({
+          name: parent.node.id.name,
+          path: parent,
+          code: 'var ' + parent,
+        })
+      } else if (ref.key === 'object') {
+        // MemberExpression
+        memToStr(parent)
+      } else if (ref.key === 'callee') {
+        // CallExpression
+        funToStr(parent)
+      }
+    }
+    for (let ref of refs_next) {
+      dfs(stk, ref)
+    }
+    scope.crawl()
+    item.path.remove()
+    scope.crawl()
+    console.log(`Exit sub ${stk.length}:${cur_val}`)
+    stk.pop()
   }
-  traverse(ast, {
-    CallExpression: funToStr,
-    MemberExpression: memToStr,
-  })
-  traverse(ast, {
-    VariableDeclarator: dfs,
-  })
+  const root = {
+    name: decrypt_val,
+    path: decrypt_path,
+    code: '',
+  }
+  dfs([], root)
   return ast
-}
-
-function unpackCall(path) {
-  // 这里与V5版本一致，共有4种调用类型：
-  // var _0xb28de8 = {
-  //     "abcd": function(_0x22293f, _0x5a165e) {
-  //         return _0x22293f == _0x5a165e;
-  //     },
-  //     "dbca": function(_0xfbac1e, _0x23462f, _0x556555) {
-  //         return _0xfbac1e(_0x23462f, _0x556555);
-  //     },
-  //     "aaa": function(_0x57e640) {
-  //         return _0x57e640();
-  //     },
-  //     "bbb": "eee"
-  // };
-  // var aa = _0xb28de8["abcd"](123, 456);
-  // var bb = _0xb28de8["dbca"](bcd, 11, 22);
-  // var cc = _0xb28de8["aaa"](dcb);
-  // var dd = _0xb28de8["bbb"];
-  //   |
-  //   |
-  //   |
-  //   v
-  // var aa = 123 == 456;
-  // var bb = bcd(11, 22);
-  // var cc = dcb();
-  // var dd = "eee";
-  let node = path.node
-  // 变量必须定义为Object类型才可能是代码块加密内容
-  if (!t.isObjectExpression(node.init)) {
-    return
-  }
-  let objPropertiesList = node.init.properties
-  if (objPropertiesList.length == 0) {
-    return
-  }
-  // 遍历Object 判断每个元素是否符合格式
-  let objName = node.id.name
-  let objKeys = {}
-  objPropertiesList.map(function (prop) {
-    if (!t.isObjectProperty(prop)) {
-      return
-    }
-    let key
-    if (t.isIdentifier(prop.key)) {
-      key = prop.key.name
-    } else {
-      key = prop.key.value
-    }
-    if (t.isFunctionExpression(prop.value)) {
-      // 符合要求的函数必须有且仅有一条return语句
-      if (prop.value.body.body.length !== 1) {
-        return
-      }
-      let retStmt = prop.value.body.body[0]
-      if (!t.isReturnStatement(retStmt)) {
-        return
-      }
-      // 检测是否是3种格式之一
-      let repfunc = null
-      if (t.isBinaryExpression(retStmt.argument)) {
-        // 二元运算类型
-        repfunc = function (_path, args) {
-          _path.replaceWith(
-            t.binaryExpression(retStmt.argument.operator, args[0], args[1])
-          )
-        }
-      } else if (t.isLogicalExpression(retStmt.argument)) {
-        // 逻辑判断类型
-        repfunc = function (_path, args) {
-          _path.replaceWith(
-            t.logicalExpression(retStmt.argument.operator, args[0], args[1])
-          )
-        }
-      } else if (t.isCallExpression(retStmt.argument)) {
-        // 函数调用类型 调用的函数必须是传入的第一个参数
-        if (!t.isIdentifier(retStmt.argument.callee)) {
-          return
-        }
-        if (retStmt.argument.callee.name !== prop.value.params[0].name) {
-          return
-        }
-        repfunc = function (_path, args) {
-          _path.replaceWith(t.callExpression(args[0], args.slice(1)))
-        }
-      }
-      if (repfunc) {
-        objKeys[key] = repfunc
-      }
-    } else if (t.isStringLiteral(prop.value)) {
-      let retStmt = prop.value.value
-      objKeys[key] = function (_path) {
-        _path.replaceWith(t.stringLiteral(retStmt))
-      }
-    }
-  })
-  // 如果Object内的元素不全符合要求 很有可能是普通的字符串类型 不需要替换
-  let replCount = Object.keys(objKeys).length
-  if (!replCount) {
-    return
-  }
-  if (objPropertiesList.length !== replCount) {
-    console.log(
-      `不完整替换: ${objName} ${replCount}/${objPropertiesList.length}`
-    )
-    return
-  }
-  // 遍历作用域进行替换 分为函数调用和字符串调用
-  console.log(`处理代码块: ${objName}`)
-  let objUsed = {}
-  function getReplaceFunc(_node) {
-    if (!t.isStringLiteral(_node.property) && !t.isIdentifier(_node.property)) {
-      return null
-    }
-    let key = null
-    if (_node.property.value in objKeys) {
-      key = _node.property.value
-    } else if (_node.property.name in objKeys) {
-      key = _node.property.name
-    }
-    if (!key) {
-      return null
-    }
-    objUsed[key] = true
-    return objKeys[key]
-  }
-  let bind = path.scope.getBinding(objName)?.referencePaths
-  let usedCount = 0
-  for (let i = bind.length - 1; i >= 0; --i) {
-    let ref = bind[i]
-    let up1 = ref.parentPath
-    if (up1.isMemberExpression() && ref.key === 'object') {
-      if (up1.key === 'left' && t.isAssignmentExpression(up1.parent)) {
-        continue
-      }
-      let func = getReplaceFunc(up1.node)
-      if (!func) {
-        continue
-      }
-      ++usedCount
-      let up2 = up1.parentPath
-      if (up1.key === 'callee') {
-        func(up2, up2.node.arguments)
-      } else {
-        func(up1)
-      }
-    }
-  }
-  // 如果没有全部使用 就先不删除
-  if (usedCount !== bind.length) {
-    console.log(`不完整使用: ${objName} ${usedCount}/${bind.length}`)
-  } else {
-    path.remove()
-  }
-}
-
-function decodeCodeBlock(ast) {
-  // 在变量定义完成后判断是否为代码块加密内容
-  traverse(ast, { VariableDeclarator: { exit: unpackCall } })
-  return ast
-}
-
-function purifyBoolean(path) {
-  // 简化 ![] 和 !![]
-  const node0 = path.node
-  if (node0.operator !== '!') {
-    return
-  }
-  const node1 = node0.argument
-  if (t.isArrayExpression(node1) && node1.elements.length === 0) {
-    path.replaceWith(t.booleanLiteral(false))
-    return
-  }
-  if (!t.isUnaryExpression(node1) || node1.operator !== '!') {
-    return
-  }
-  const node2 = node1.argument
-  if (t.isArrayExpression(node2) && node2.elements.length === 0) {
-    path.replaceWith(t.booleanLiteral(true))
-  }
-}
-
-function cleanIFCode(path) {
-  function clear(path, toggle) {
-    // 判定成立
-    if (toggle) {
-      if (path.node.consequent.type == 'BlockStatement') {
-        path.replaceWithMultiple(path.node.consequent.body)
-      } else {
-        path.replaceWith(path.node.consequent)
-      }
-      return
-    }
-    // 判定不成立
-    if (!path.node.alternate) {
-      path.remove()
-      return
-    }
-    if (path.node.alternate.type == 'BlockStatement') {
-      path.replaceWithMultiple(path.node.alternate.body)
-    } else {
-      path.replaceWith(path.node.alternate)
-    }
-  }
-  // 判断判定是否恒定
-  const test = path.node.test
-  const types = ['StringLiteral', 'NumericLiteral', 'BooleanLiteral']
-  if (test.type === 'BinaryExpression') {
-    if (
-      types.indexOf(test.left.type) !== -1 &&
-      types.indexOf(test.right.type) !== -1
-    ) {
-      const left = JSON.stringify(test.left.value)
-      const right = JSON.stringify(test.right.value)
-      clear(path, eval(left + test.operator + right))
-    }
-  } else if (types.indexOf(test.type) !== -1) {
-    clear(path, eval(JSON.stringify(test.value)))
-  }
 }
 
 function cleanSwitchCode1(path) {
@@ -625,12 +430,13 @@ function cleanSwitchCode2(path) {
     }
     let test = '' + pre_path
     try {
-      arr = eval(test + `;${arrName}`)
+      arr = evalOneTime(test + `;${arrName}.join('|')`)
+      arr = arr.split('|')
     } catch {
       //
     }
   }
-  if (!arr) {
+  if (!Array.isArray(arr)) {
     return
   }
   console.log(`扁平化还原: ${arrName}[${argName}]`)
@@ -670,9 +476,9 @@ function cleanSwitchCode2(path) {
 }
 
 function cleanDeadCode(ast) {
-  traverse(ast, { UnaryExpression: purifyBoolean })
-  traverse(ast, { IfStatement: cleanIFCode })
-  traverse(ast, { ConditionalExpression: cleanIFCode })
+  traverse(ast, calculateConstantExp)
+  const pruneIfBranch = require('../visitor/prune-if-branch')
+  traverse(ast, pruneIfBranch)
   traverse(ast, { WhileStatement: { exit: cleanSwitchCode1 } })
   traverse(ast, { ForStatement: { exit: cleanSwitchCode2 } })
   return ast
@@ -891,54 +697,8 @@ function purifyFunction(path) {
 function purifyCode(ast) {
   // 净化拼接字符串的函数
   traverse(ast, { AssignmentExpression: purifyFunction })
-  // 净化变量定义中的常量数值
-  function purifyDecl(path) {
-    if (t.isNumericLiteral(path.node.init)) {
-      return
-    }
-    const name = path.node.id.name
-    const { code } = generator(
-      {
-        type: 'Program',
-        body: [path.node.init],
-      },
-      {
-        compact: true,
-      }
-    )
-    const valid = /^[-+*/%!<>&|~^ 0-9;]+$/.test(code)
-    if (!valid) {
-      return
-    }
-    if (/^[-][0-9]*$/.test(code)) {
-      return
-    }
-    const value = eval(code)
-    const node = t.valueToNode(value)
-    path.replaceWith(t.variableDeclarator(path.node.id, node))
-    console.log(`替换 ${name}: ${code} -> ${value}`)
-  }
-  traverse(ast, { VariableDeclarator: purifyDecl })
-  // 合并字符串
-  let end = false
-  function combineString(path) {
-    const op = path.node.operator
-    if (op !== '+') {
-      return
-    }
-    const left = path.node.left
-    const right = path.node.right
-    if (!t.isStringLiteral(left) || !t.isStringLiteral(right)) {
-      return
-    }
-    end = false
-    path.replaceWith(t.StringLiteral(eval(path + '')))
-    console.log(`合并字符串: ${path.node.value}`)
-  }
-  while (!end) {
-    end = true
-    traverse(ast, { BinaryExpression: combineString })
-  }
+  // 计算常量表达式
+  traverse(ast, calculateConstantExp)
   // 替换索引器
   function FormatMember(path) {
     // _0x19882c['removeCookie']['toString']()
@@ -962,28 +722,8 @@ function purifyCode(ast) {
   }
   traverse(ast, { MemberExpression: FormatMember })
   // 分割表达式
-  function removeComma(path) {
-    // a = 1, b = ddd(), c = null;
-    //  |
-    //  |
-    //  |
-    //  v
-    // a = 1;
-    // b = ddd();
-    // c = null;
-    if (!t.isExpressionStatement(path.parent)) {
-      return
-    }
-    let replace_path = path.parentPath
-    if (replace_path.listKey !== 'body') {
-      return
-    }
-    for (const item of path.node.expressions) {
-      replace_path.insertBefore(t.expressionStatement(item))
-    }
-    replace_path.remove()
-  }
-  traverse(ast, { SequenceExpression: { exit: removeComma } })
+  const splitSequence = require('../visitor/split-sequence')
+  traverse(ast, splitSequence)
   // 删除空语句
   traverse(ast, {
     EmptyStatement: (path) => {
@@ -1029,7 +769,8 @@ module.exports = function (code) {
     return null
   }
   console.log('处理代码块加密...')
-  ast = decodeCodeBlock(ast)
+  const parseControlFlowStorage = require('../visitor/parse-control-flow-storage')
+  traverse(ast, parseControlFlowStorage)
   console.log('清理死代码...')
   ast = cleanDeadCode(ast)
   // 刷新代码
